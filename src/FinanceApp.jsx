@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import PeriodSelector from './components/PeriodSelector';
 import { exportarPDF } from './services/pdfExport';
 
+
 // Cores e ícones por categoria
 const CATEGORIA_CONFIG = {
   'Empréstimos': { cor: '#60A5FA', icon: DollarSign },
@@ -70,9 +71,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
   useEffect(() => {
     const carregarTransacoes = async () => {
       try {
-        const response = await fetch(`http://localhost:3307/api/transacoes/${usuario.id}`);
-        if (response.ok) {
-          const dados = await response.json();
+        const response = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
+if (response.ok) {
+  const dados = await response.json();
           
           const transacoesFormatadas = dados.map(t => ({
             ...t,
@@ -96,9 +97,10 @@ const FinanceApp = ({ usuario, onLogout }) => {
   useEffect(() => {
     const carregarCaixinhas = async () => {
       try {
-        const response = await fetch(`http://localhost:3307/api/caixinhas/${usuario.id}`);
-        if (response.ok) {
-          const dados = await response.json();
+        const response = await fetch(`${API_URL}/api/caixinhas/${usuario.id}`);
+
+if (response.ok) {
+  const dados = await response.json();
           const caixinhasFormatadas = dados.map(c => ({
             ...c,
             valor_total: parseFloat(c.valor_total),
@@ -168,8 +170,8 @@ const FinanceApp = ({ usuario, onLogout }) => {
     };
 
     try {
-      const response = await fetch('http://localhost:3307/api/transacoes', {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/api/transacoes`, {
+  method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novaTransacao)
       });
@@ -205,8 +207,8 @@ const FinanceApp = ({ usuario, onLogout }) => {
     try {
       if (transacaoEdit) {
         // ATUALIZAR (sem parcelas)
-        await fetch(`http://localhost:3307/api/transacoes/${transacaoEdit.id}`, {
-          method: 'PUT',
+        await fetch(`${API_URL}/api/transacoes/${transacaoEdit.id}`, {
+  method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(novaTransacao)
         });
@@ -217,8 +219,8 @@ const FinanceApp = ({ usuario, onLogout }) => {
       } else {
         // CRIAR (com ou sem parcelas)
         const endpoint = novaTransacao.parcelas > 1 
-          ? 'http://localhost:3307/api/transacoes/parcelada'
-          : 'http://localhost:3307/api/transacoes';
+  ? `${API_URL}/api/transacoes/parcelada`
+  : `${API_URL}/api/transacoes`;
         
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -229,7 +231,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
         const dados = await response.json();
         
         // Recarrega as transações do banco
-        const responseTransacoes = await fetch(`http://localhost:3307/api/transacoes/${usuario.id}`);
+        const responseTransacoes = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
         const todasTransacoes = await responseTransacoes.json();
         const transacoesFormatadas = todasTransacoes.map(t => ({
           ...t,
@@ -275,7 +277,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
     };
 
     try {
-      const response = await fetch('http://localhost:3307/api/transacoes', {
+      const response = await fetch(`${API_URL}/api/transacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novaTransacao)
@@ -293,7 +295,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
     const confirmar = window.confirm('Deseja realmente excluir esta transação?');
     if (confirmar) {
       try {
-        await fetch(`http://localhost:3307/api/transacoes/${id}`, {
+        await fetch(`${API_URL}/api/transacoes/${id}`, {
           method: 'DELETE'
         });
         setTransacoes(transacoes.filter(t => t.id !== id));
@@ -323,7 +325,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
     const transacao = transacoes.find(t => t.id === id);
     
     try {
-      await fetch(`http://localhost:3307/api/transacoes/${id}`, {
+      await fetch(`${API_URL}/api/transacoes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,67 +394,37 @@ const FinanceApp = ({ usuario, onLogout }) => {
   };
 
   // Previsão do próximo mês
- const calcularPrevisao = () => {
-  // Calcular próximo mês
-  const proximoMes = (() => {
-    const data = new Date();
-    data.setMonth(data.getMonth() + 1);
-    return data.toISOString().slice(0, 7);
-  })();
-
-  // Pegar gastos fixos do próximo mês (se já cadastrados)
-  const gastosFuturos = transacoes
-    .filter(t => t.data.startsWith(proximoMes) && t.tipo === 'gasto')
-    .reduce((sum, t) => sum + t.valor, 0);
-
-  // Se já tem gastos cadastrados no próximo mês, usar eles
-  if (gastosFuturos > 0) {
-    const receitasFuturas = transacoes
-      .filter(t => t.data.startsWith(proximoMes) && t.tipo === 'receita')
-      .reduce((sum, t) => sum + t.valor, 0);
+  const calcularPrevisao = () => {
+    const gastosMes = [];
+    for (let i = 1; i <= 3; i++) {
+      const data = new Date();
+      data.setMonth(data.getMonth() - i);
+      const mesStr = data.toISOString().slice(0, 7);
+      const totais = calcularTotais(mesStr);
+      gastosMes.push(totais.variaveis);
+    }
+    
+    const mediaVariaveis = gastosMes.reduce((a, b) => a + b, 0) / gastosMes.length;
+    const mesAtualTotais = calcularTotais(mesAtual);
+    const previsaoTotal = mesAtualTotais.fixos + mediaVariaveis;
+    
+    const receitasMedia = (() => {
+      const receitas = [];
+      for (let i = 1; i <= 3; i++) {
+        const data = new Date();
+        data.setMonth(data.getMonth() - i);
+        const mesStr = data.toISOString().slice(0, 7);
+        receitas.push(calcularTotais(mesStr).receitas);
+      }
+      return receitas.reduce((a, b) => a + b, 0) / receitas.length;
+    })();
 
     return {
-      previsaoGastos: gastosFuturos,
-      previsaoSaldo: receitasFuturas - gastosFuturos,
-      alerta: gastosFuturos > receitasFuturas
+      previsaoGastos: previsaoTotal,
+      previsaoSaldo: receitasMedia - previsaoTotal,
+      alerta: previsaoTotal > receitasMedia
     };
-  }
-
-  // Se não tem gastos futuros, calcular baseado nos últimos 3 meses
-  const gastosMes = [];
-  const receitasMes = [];
-  
-  for (let i = 1; i <= 3; i++) {
-    const data = new Date();
-    data.setMonth(data.getMonth() - i);
-    const mesStr = data.toISOString().slice(0, 7);
-    const totais = calcularTotais(mesStr);
-    
-    if (totais.gastos > 0) gastosMes.push(totais.gastos);
-    if (totais.receitas > 0) receitasMes.push(totais.receitas);
-  }
-
-  // Se não tem dados históricos, usar dados do mês atual
-  if (gastosMes.length === 0) {
-    const mesAtualTotais = calcularTotais(mesAtual);
-    gastosMes.push(mesAtualTotais.gastos || 0);
-    receitasMes.push(mesAtualTotais.receitas || 0);
-  }
-
-  const mediaGastos = gastosMes.length > 0 
-    ? gastosMes.reduce((a, b) => a + b, 0) / gastosMes.length 
-    : 0;
-  
-  const mediaReceitas = receitasMes.length > 0 
-    ? receitasMes.reduce((a, b) => a + b, 0) / receitasMes.length 
-    : 0;
-
-  return {
-    previsaoGastos: mediaGastos,
-    previsaoSaldo: mediaReceitas - mediaGastos,
-    alerta: mediaGastos > mediaReceitas
   };
-};
 
   const exportarCSV = () => {
     const csv = [
@@ -782,7 +754,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
                           onClick={async () => {
                             if (window.confirm('Deseja realmente deletar esta caixinha?')) {
                               try {
-                                await fetch(`http://localhost:3307/api/caixinhas/${c.id}`, { method: 'DELETE' });
+                                await fetch(`${API_URL}/api/caixinhas/${c.id}`, {
+  method: 'DELETE'
+});
                                 setCaixinhas(caixinhas.filter(cx => cx.id !== c.id));
                               } catch (err) {
                                 console.error("Erro ao deletar:", err);
@@ -832,7 +806,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                         <button
                           onClick={async () => {
                             try {
-                              await fetch(`http://localhost:3307/api/caixinhas/${c.id}/pagar`, {
+                              await fetch(`${API_URL}/api/caixinhas/${c.id}/pagar`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ valor: valorParcela })
@@ -1297,7 +1271,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                   }
 
                   try {
-                    const response = await fetch('http://localhost:3307/api/caixinhas', {
+                   const response = await fetch(`${API_URL}/api/caixinhas`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
