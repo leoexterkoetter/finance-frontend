@@ -71,29 +71,30 @@ const FinanceApp = ({ usuario, onLogout }) => {
 
   // Carregar transações do backend
   useEffect(() => {
-    const carregarTransacoes = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
-if (response.ok) {
-  const dados = await response.json();
-          
-          const transacoesFormatadas = dados.map(t => ({
-            ...t,
-            valor: parseFloat(t.valor),
-            fixo: Boolean(t.fixo),
-            pago: Boolean(t.pago)
-          }));
-          
-          setTransacoes(transacoesFormatadas);
-        }
-      } catch (err) {
-        console.error("Erro ao carregar transações:", err);
-        alert("Erro ao conectar com o servidor. Verifique se o backend está rodando.");
+  const carregarTransacoes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
+      if (response.ok) {
+        const dados = await response.json();
+        
+        const transacoesFormatadas = dados.map(t => ({
+          ...t,
+          id: t._id || t.id, // ✅ ADICIONE ESTA LINHA - usar _id do MongoDB
+          valor: parseFloat(t.valor),
+          fixo: Boolean(t.fixo),
+          pago: Boolean(t.pago)
+        }));
+        
+        setTransacoes(transacoesFormatadas);
       }
-    };
-    carregarTransacoes();
-    gerarGastosFixosAutomaticos();
-  }, [usuario.id]);
+    } catch (err) {
+      console.error("Erro ao carregar transações:", err);
+      alert("Erro ao conectar com o servidor. Verifique se o backend está rodando.");
+    }
+  };
+  carregarTransacoes();
+  gerarGastosFixosAutomaticos();
+}, [usuario.id]);
 
   // Carregar caixinhas do backend
   useEffect(() => {
@@ -170,7 +171,7 @@ if (response.ok) {
       fixo: false,
       pago: false
     };
-
+    
     try {
       const response = await fetch(`${API_URL}/api/transacoes`, {
   method: 'POST',
