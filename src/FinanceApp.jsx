@@ -356,6 +356,46 @@ if (response.ok) {
     
     return { gastos, receitas, saldo: receitas - gastos, fixos, variaveis, naoPagos, fixosPagos, fixosTotal };
   };
+// ✅ ADICIONE AQUI (linha ~359):
+const calcularVencimentos = () => {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  
+  const em3Dias = new Date(hoje);
+  em3Dias.setDate(em3Dias.getDate() + 3);
+  
+  const em7Dias = new Date(hoje);
+  em7Dias.setDate(em7Dias.getDate() + 7);
+
+  const nãoPagas = transacoes.filter(t => 
+    t.tipo === 'gasto' && 
+    !t.pago && 
+    t.data.startsWith(mesAtual)
+  );
+
+  const vencidas = nãoPagas.filter(t => {
+    const dataTransacao = new Date(t.data + 'T00:00:00');
+    return dataTransacao < hoje;
+  });
+
+  const vencem3Dias = nãoPagas.filter(t => {
+    const dataTransacao = new Date(t.data + 'T00:00:00');
+    return dataTransacao >= hoje && dataTransacao <= em3Dias;
+  });
+
+  const vencem7Dias = nãoPagas.filter(t => {
+    const dataTransacao = new Date(t.data + 'T00:00:00');
+    return dataTransacao > em3Dias && dataTransacao <= em7Dias;
+  });
+
+  return {
+    vencidas,
+    vencem3Dias,
+    vencem7Dias,
+    total: nãoPagas.length,
+    totalVencendo: vencidas.length + vencem3Dias.length
+  };
+};
 
   const calcularPorCategoria = () => {
     const transacoesMes = transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'gasto');
@@ -477,9 +517,17 @@ if (response.ok) {
               <button onClick={() => setTela('dashboard')} className={`px-3 py-1.5 rounded text-sm ${tela === 'dashboard' ? 'bg-blue-600' : 'bg-gray-700'}`}>
                 Dashboard
               </button>
-              <button onClick={() => setTela('transacoes')} className={`px-3 py-1.5 rounded text-sm ${tela === 'transacoes' ? 'bg-blue-600' : 'bg-gray-700'}`}>
-                Transações
-              </button>
+              <button 
+  onClick={() => setTela('transacoes')} 
+  className={`px-3 py-1.5 rounded text-sm relative ${tela === 'transacoes' ? 'bg-blue-600' : 'bg-gray-700'}`}
+>
+  Transações
+  {calcularVencimentos().totalVencendo > 0 && (
+    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
+      {calcularVencimentos().totalVencendo}
+    </span>
+  )}
+</button>
               <button onClick={() => setTela('caixinhas')} className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 ${tela === 'caixinhas' ? 'bg-blue-600' : 'bg-gray-700'}`}>
                 <Wallet size={16} />
                 Caixinhas
@@ -501,9 +549,44 @@ if (response.ok) {
        {tela === 'dashboard' && (
   <>
     {/* Seletor de Mês */}
-    <div className="mb-6">
-      <PeriodSelector value={mesAtual} onChange={setMesAtual} />
+<div className="mb-6">
+  <PeriodSelector value={mesAtual} onChange={setMesAtual} />
+</div>
+
+{/* ✅ ADICIONE ESTE BLOCO: Alert de Vencimentos */}
+{calcularVencimentos().totalVencendo > 0 && (
+  <div className="bg-gradient-to-r from-red-600/20 to-orange-600/20 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+    <div className="flex items-start gap-3">
+      <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={24} />
+      <div className="flex-1">
+        <h3 className="font-bold text-red-300 mb-2">⚠️ Atenção: Contas Pendentes!</h3>
+        <div className="space-y-1 text-sm">
+          {calcularVencimentos().vencidas.length > 0 && (
+            <p className="text-red-200">
+              • <strong>{calcularVencimentos().vencidas.length}</strong> conta(s) <strong>VENCIDA(S)</strong> 🔴
+            </p>
+          )}
+          {calcularVencimentos().vencem3Dias.length > 0 && (
+            <p className="text-orange-200">
+              • <strong>{calcularVencimentos().vencem3Dias.length}</strong> conta(s) vencem nos próximos 3 dias 🟡
+            </p>
+          )}
+          {calcularVencimentos().vencem7Dias.length > 0 && (
+            <p className="text-yellow-200">
+              • <strong>{calcularVencimentos().vencem7Dias.length}</strong> conta(s) vencem esta semana
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setTela('transacoes')}
+          className="mt-3 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+        >
+          Ver Pendências →
+        </button>
+      </div>
     </div>
+  </div>
+)}
 
             {/* Cards de Resumo Principais - APENAS 3 PRINCIPAIS */}
             <div className="grid grid-cols-3 gap-4 mb-6">
@@ -654,77 +737,106 @@ if (response.ok) {
               </div>
             </div>
 
-            {/* Lista Completa de Transações */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h3 className="font-bold mb-3 flex items-center justify-between">
-                <span>Transações</span>
-                <span className="text-sm text-gray-400">({transacoesFiltradas.length})</span>
-              </h3>
-              {transacoesFiltradas.length === 0 ? (
-                <p className="text-gray-400 text-center py-8 text-sm">Nenhuma transação encontrada</p>
-              ) : (
-                <div className="space-y-2">
-                  {transacoesFiltradas.map(t => {
-                    const cor = CATEGORIA_CONFIG[t.categoria]?.cor || '#6B7280';
-                    return (
-                      <div key={t.id} className="bg-gray-700/50 rounded-lg p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full" style={{ backgroundColor: cor + '40' }}>
-                          <div style={{ color: cor }}>
-                            <IconeCategoria categoria={t.categoria} tamanho={18} />
-                          </div>
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium truncate">{t.categoria}</span>
-                            {t.fixo && <span className="text-xs bg-blue-600/50 px-2 py-0.5 rounded">Fixo</span>}
-                            {t.pago && <span className="text-xs bg-green-600/50 px-2 py-0.5 rounded">Pago</span>}
-                            {t.parcelas > 1 && (
-                              <span className="text-xs bg-purple-600/50 px-2 py-0.5 rounded">
-                                {t.parcela_atual}/{t.parcelas}
-                              </span>
-                            )}
-                          </div>
-                          {t.descricao && <div className="text-sm text-gray-400 truncate">{t.descricao}</div>}
-                          <div className="text-xs text-gray-500">{new Date(t.data + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className={`font-bold ${t.tipo === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
-                            {t.tipo === 'receita' ? '+' : '-'}R$ {t.valor.toFixed(2)}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-1">
-                          <button onClick={() => togglePago(t.id)} className="p-2 hover:bg-gray-600 rounded" title="Marcar como pago">
-                            <Save size={16} />
-                          </button>
-                          <button onClick={() => editarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Editar">
-                            <Edit2 size={16} />
-                          </button>
-                          <button onClick={() => duplicarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Duplicar">
-                            <Copy size={16} />
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deletarTransacao(t.id);
-                            }} 
-                            className="p-2 hover:bg-red-600 rounded text-red-400 hover:text-white transition-colors" 
-                            title="Excluir"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+           {/* Lista Completa de Transações */}
+<div className="bg-gray-800 rounded-lg p-4">
+  <h3 className="font-bold mb-3 flex items-center justify-between">
+    <span>Transações</span>
+    <span className="text-sm text-gray-400">({transacoesFiltradas.length})</span>
+  </h3>
+  {transacoesFiltradas.length === 0 ? (
+    <p className="text-gray-400 text-center py-8 text-sm">Nenhuma transação encontrada</p>
+  ) : (
+    <div className="space-y-2">
+      {transacoesFiltradas.map(t => {
+        const cor = CATEGORIA_CONFIG[t.categoria]?.cor || '#6B7280';
+        
+        // ✅ Verificar status de vencimento
+        const dataTransacao = new Date(t.data + 'T00:00:00');
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const em3Dias = new Date(hoje);
+        em3Dias.setDate(em3Dias.getDate() + 3);
+        
+        const isVencida = !t.pago && t.tipo === 'gasto' && dataTransacao < hoje;
+        const vence3Dias = !t.pago && t.tipo === 'gasto' && dataTransacao >= hoje && dataTransacao <= em3Dias;
+        
+        return (
+          <div 
+            key={t.id} 
+            className={`bg-gray-700/50 rounded-lg p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors
+              ${isVencida ? 'border-2 border-red-500/50 bg-red-900/20' : ''}
+              ${vence3Dias ? 'border-2 border-orange-500/50 bg-orange-900/20' : ''}
+            `}
+          >
+            <div className="flex items-center justify-center w-10 h-10 rounded-full" style={{ backgroundColor: cor + '40' }}>
+              <div style={{ color: cor }}>
+                <IconeCategoria categoria={t.categoria} tamanho={18} />
+              </div>
             </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium truncate">{t.categoria}</span>
+                {t.fixo && <span className="text-xs bg-blue-600/50 px-2 py-0.5 rounded">Fixo</span>}
+                {t.pago && <span className="text-xs bg-green-600/50 px-2 py-0.5 rounded">Pago</span>}
+                
+                {/* Badges de vencimento */}
+                {isVencida && (
+                  <span className="text-xs bg-red-600 px-2 py-0.5 rounded font-bold animate-pulse">
+                    VENCIDA 🔴
+                  </span>
+                )}
+                {vence3Dias && (
+                  <span className="text-xs bg-orange-600 px-2 py-0.5 rounded font-bold">
+                    Vence em breve 🟡
+                  </span>
+                )}
+                
+                {t.parcelas > 1 && (
+                  <span className="text-xs bg-purple-600/50 px-2 py-0.5 rounded">
+                    {t.parcela_atual}/{t.parcelas}
+                  </span>
+                )}
+              </div>
+              {t.descricao && <div className="text-sm text-gray-400 truncate">{t.descricao}</div>}
+              <div className="text-xs text-gray-500">{new Date(t.data + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+            </div>
+
+            <div className="text-right">
+              <div className={`font-bold ${t.tipo === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
+                {t.tipo === 'receita' ? '+' : '-'}R$ {t.valor.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="flex gap-1">
+              <button onClick={() => togglePago(t.id)} className="p-2 hover:bg-gray-600 rounded" title="Marcar como pago">
+                <Save size={16} />
+              </button>
+              <button onClick={() => editarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Editar">
+                <Edit2 size={16} />
+              </button>
+              <button onClick={() => duplicarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Duplicar">
+                <Copy size={16} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deletarTransacao(t.id);
+                }} 
+                className="p-2 hover:bg-red-600 rounded text-red-400 hover:text-white transition-colors" 
+                title="Excluir"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
           </>
         )}
-
         {/* Tela Caixinhas */}
         {tela === 'caixinhas' && (
           <>
