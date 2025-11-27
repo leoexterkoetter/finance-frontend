@@ -15,7 +15,7 @@ const Login = ({ onLogin }) => {
     try {
   const endpoint = modo === 'login' ? '/api/login' : '/api/cadastro';
 
-  const response = await fetch(`http://localhost:3307${endpoint}`, {
+  const response = await fetch(`https://finance-backend-production-8578.up.railway.app${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(form)
