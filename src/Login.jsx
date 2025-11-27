@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { LogIn, UserPlus } from 'lucide-react';
 
+const API_URL = 'https://finance-backend-production-8578.up.railway.app';
+
+
 const Login = ({ onLogin }) => {
   const [modo, setModo] = useState('login');
   const [form, setForm] = useState({ email: '', senha: '', nome: '' });

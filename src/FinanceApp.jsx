@@ -4,6 +4,8 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import PeriodSelector from './components/PeriodSelector';
 import { exportarPDF } from './services/pdfExport';
 
+const API_URL = 'https://finance-backend-production-8578.up.railway.app';
+
 
 // Cores e ícones por categoria
 const CATEGORIA_CONFIG = {
