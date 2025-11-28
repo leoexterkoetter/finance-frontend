@@ -633,34 +633,34 @@ const calcularVencimentos = () => {
   </div>
 )}
 
-            {/* Cards de Resumo Principais - APENAS 3 PRINCIPAIS */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-red-600/20 border border-red-600/30 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2 text-red-400">
-                  <TrendingDown size={18} />
-                  <span className="text-xs font-medium">Gastos</span>
-                </div>
-                <div className="text-2xl font-bold">R$ {totaisAtual.gastos.toFixed(2)}</div>
-              </div>
+           {/* Cards de Resumo - Tamanho Balanceado */}
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  <div className="bg-red-600/20 border border-red-600/30 rounded-xl p-4">
+    <div className="flex items-center gap-2 mb-1.5 text-red-400">
+      <TrendingDown size={18} />
+      <span className="text-xs font-medium">Gastos</span>
+    </div>
+    <div className="text-2xl font-bold">R$ {totaisAtual.gastos.toFixed(2)}</div>
+  </div>
 
-              <div className="bg-green-600/20 border border-green-600/30 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2 text-green-400">
-                  <TrendingUp size={18} />
-                  <span className="text-xs font-medium">Receitas</span>
-                </div>
-                <div className="text-2xl font-bold">R$ {totaisAtual.receitas.toFixed(2)}</div>
-              </div>
+  <div className="bg-green-600/20 border border-green-600/30 rounded-xl p-4">
+    <div className="flex items-center gap-2 mb-1.5 text-green-400">
+      <TrendingUp size={18} />
+      <span className="text-xs font-medium">Receitas</span>
+    </div>
+    <div className="text-2xl font-bold">R$ {totaisAtual.receitas.toFixed(2)}</div>
+  </div>
 
-              <div className={`${totaisAtual.saldo >= 0 ? 'bg-green-500/30 border-green-500/50' : 'bg-red-500/30 border-red-500/50'} border rounded-xl p-4`}>
-                <div className={`flex items-center gap-2 mb-2 ${totaisAtual.saldo >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                  <DollarSign size={18} />
-                  <span className="text-xs font-medium">Saldo</span>
-                </div>
-                <div className={`text-2xl font-bold ${totaisAtual.saldo >= 0 ? 'text-green-200' : 'text-red-200'}`}>
-                  R$ {totaisAtual.saldo.toFixed(2)}
-                </div>
-              </div>
-            </div>
+  <div className={`${totaisAtual.saldo >= 0 ? 'bg-green-500/30 border-green-500/50' : 'bg-red-500/30 border-red-500/50'} border rounded-xl p-4`}>
+    <div className={`flex items-center gap-2 mb-1.5 ${totaisAtual.saldo >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+      <DollarSign size={18} />
+      <span className="text-xs font-medium">Saldo</span>
+    </div>
+    <div className={`text-2xl font-bold ${totaisAtual.saldo >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+      R$ {totaisAtual.saldo.toFixed(2)}
+    </div>
+  </div>
+</div>
 
             {/* Mini Gráfico de Evolução */}
             <div className="bg-gray-800 rounded-xl p-5 mb-6">
@@ -792,93 +792,109 @@ const calcularVencimentos = () => {
     <p className="text-gray-400 text-center py-8 text-sm">Nenhuma transação encontrada</p>
   ) : (
     <div className="space-y-2">
-      {transacoesFiltradas.map(t => {
-        const cor = CATEGORIA_CONFIG[t.categoria]?.cor || '#6B7280';
-        
-        // ✅ Verificar status de vencimento
-        const dataTransacao = new Date(t.data + 'T00:00:00');
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const em3Dias = new Date(hoje);
-        em3Dias.setDate(em3Dias.getDate() + 3);
-        
-        const isVencida = !t.pago && t.tipo === 'gasto' && dataTransacao < hoje;
-        const vence3Dias = !t.pago && t.tipo === 'gasto' && dataTransacao >= hoje && dataTransacao <= em3Dias;
-        
-        return (
-          <div 
-            key={t.id} 
-            className={`bg-gray-700/50 rounded-lg p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors
-              ${isVencida ? 'border-2 border-red-500/50 bg-red-900/20' : ''}
-              ${vence3Dias ? 'border-2 border-orange-500/50 bg-orange-900/20' : ''}
-            `}
-          >
-            <div className="flex items-center justify-center w-10 h-10 rounded-full" style={{ backgroundColor: cor + '40' }}>
-              <div style={{ color: cor }}>
-                <IconeCategoria categoria={t.categoria} tamanho={18} />
-              </div>
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium truncate">{t.categoria}</span>
-                {t.fixo && <span className="text-xs bg-blue-600/50 px-2 py-0.5 rounded">Fixo</span>}
-                {t.pago && <span className="text-xs bg-green-600/50 px-2 py-0.5 rounded">Pago</span>}
-                
-                {/* Badges de vencimento */}
-                {isVencida && (
-                  <span className="text-xs bg-red-600 px-2 py-0.5 rounded font-bold animate-pulse">
-                    VENCIDA 🔴
-                  </span>
-                )}
-                {vence3Dias && (
-                  <span className="text-xs bg-orange-600 px-2 py-0.5 rounded font-bold">
-                    Vence em breve 🟡
-                  </span>
-                )}
-                
-                {t.parcelas > 1 && (
-                  <span className="text-xs bg-purple-600/50 px-2 py-0.5 rounded">
-                    {t.parcela_atual}/{t.parcelas}
-                  </span>
-                )}
-              </div>
-              {t.descricao && <div className="text-sm text-gray-400 truncate">{t.descricao}</div>}
-              <div className="text-xs text-gray-500">{new Date(t.data + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
-            </div>
-
-            <div className="text-right">
-              <div className={`font-bold ${t.tipo === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
-                {t.tipo === 'receita' ? '+' : '-'}R$ {t.valor.toFixed(2)}
-              </div>
-            </div>
-
-            <div className="flex gap-1">
-              <button onClick={() => togglePago(t.id)} className="p-2 hover:bg-gray-600 rounded" title="Marcar como pago">
-                <Save size={16} />
-              </button>
-              <button onClick={() => editarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Editar">
-                <Edit2 size={16} />
-              </button>
-              <button onClick={() => duplicarTransacao(t)} className="p-2 hover:bg-gray-600 rounded" title="Duplicar">
-                <Copy size={16} />
-              </button>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deletarTransacao(t.id);
-                }} 
-                className="p-2 hover:bg-red-600 rounded text-red-400 hover:text-white transition-colors" 
-                title="Excluir"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+     {transacoesFiltradas.map(t => {
+  const cor = CATEGORIA_CONFIG[t.categoria]?.cor || '#6B7280';
+  
+  // Verificar status de vencimento
+  const dataTransacao = new Date(t.data + 'T00:00:00');
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const em3Dias = new Date(hoje);
+  em3Dias.setDate(em3Dias.getDate() + 3);
+  
+  const isVencida = !t.pago && t.tipo === 'gasto' && dataTransacao < hoje;
+  const vence3Dias = !t.pago && t.tipo === 'gasto' && dataTransacao >= hoje && dataTransacao <= em3Dias;
+  
+  return (
+    <div 
+      key={t.id} 
+      className={`bg-gray-700/50 rounded-xl p-4 transition-all active:bg-gray-700
+        ${isVencida ? 'border-l-4 border-red-500 bg-red-900/20' : ''}
+        ${vence3Dias ? 'border-l-4 border-orange-500 bg-orange-900/20' : ''}
+      `}
+    >
+      {/* Linha Superior: Ícone + Info + Valor */}
+      <div className="flex items-start gap-3 mb-3">
+        {/* Ícone */}
+        <div 
+          className="flex items-center justify-center w-12 h-12 rounded-full flex-shrink-0" 
+          style={{ backgroundColor: cor + '30' }}
+        >
+          <div style={{ color: cor }}>
+            <IconeCategoria categoria={t.categoria} tamanho={20} />
           </div>
-        );
-      })}
+        </div>
+        
+        {/* Info Central */}
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-base truncate mb-1">{t.categoria}</div>
+          
+          {/* Badges */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            {t.fixo && <span className="text-xs bg-blue-600/60 px-2 py-0.5 rounded">Fixo</span>}
+            {t.pago && <span className="text-xs bg-green-600/60 px-2 py-0.5 rounded">✓ Pago</span>}
+            {isVencida && <span className="text-xs bg-red-600 px-2 py-0.5 rounded font-bold">VENCIDA</span>}
+            {vence3Dias && <span className="text-xs bg-orange-600 px-2 py-0.5 rounded font-bold">Vence em breve</span>}
+            {t.parcelas > 1 && (
+              <span className="text-xs bg-purple-600/60 px-2 py-0.5 rounded">
+                {t.parcela_atual}/{t.parcelas}
+              </span>
+            )}
+          </div>
+          
+          {/* Descrição + Data */}
+          <div className="text-xs text-gray-400">
+            {t.descricao && <span className="block truncate mb-0.5">{t.descricao}</span>}
+            <span>{new Date(t.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+          </div>
+        </div>
+
+        {/* Valor - Destaque */}
+        <div className="text-right flex-shrink-0">
+          <div className={`font-bold text-lg ${t.tipo === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
+            {t.tipo === 'receita' ? '+' : '-'}R$ {t.valor.toFixed(2)}
+          </div>
+        </div>
+      </div>
+
+      {/* Linha Inferior: Botões de Ação (Menos e Maiores) */}
+      <div className="flex gap-2 pt-3 border-t border-gray-600/50">
+        <button 
+          onClick={() => togglePago(t.id)} 
+          className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all active:scale-95 min-h-[44px] ${
+            t.pago 
+              ? 'bg-gray-600 text-gray-300' 
+              : 'bg-green-600/80 hover:bg-green-600 text-white'
+          }`}
+        >
+          {t.pago ? '✓ Pago' : 'Marcar Pago'}
+        </button>
+        
+        <button 
+          onClick={() => editarTransacao(t)} 
+          className="p-2.5 bg-gray-600 hover:bg-gray-500 rounded-lg transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          title="Editar"
+        >
+          <Edit2 size={18} />
+        </button>
+        
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm('Excluir esta transação?')) {
+              deletarTransacao(t.id);
+            }
+          }} 
+          className="p-2.5 bg-red-600/80 hover:bg-red-600 rounded-lg transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          title="Excluir"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
     </div>
-  )}
+  );
+})}
+
 </div>
           </>
         )}
@@ -1127,157 +1143,164 @@ const calcularVencimentos = () => {
           </>
         )}
 
-        {/* Tela Adicionar Completa */}
-        {tela === 'adicionar' && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">{transacaoEdit ? 'Editar Transação' : 'Nova Transação'}</h2>
-              <button onClick={() => { setTela('dashboard'); setTransacaoEdit(null); }} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+        {/* Tela Adicionar Completa - Otimizado iPhone */}
+{tela === 'adicionar' && (
+  <div className="bg-gray-800 rounded-xl p-6">
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-xl font-bold">{transacaoEdit ? 'Editar Transação' : 'Nova Transação'}</h2>
+      <button 
+        onClick={() => { setTela('dashboard'); setTransacaoEdit(null); }} 
+        className="text-gray-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+      >
+        <X size={24} />
+      </button>
+    </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-2">Tipo</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setForm({ ...form, tipo: 'gasto', categoria: '' })}
-                    className={`py-3 rounded-lg ${form.tipo === 'gasto' ? 'bg-red-600' : 'bg-gray-700'}`}
-                  >
-                    Gasto
-                  </button>
-                  <button
-                    onClick={() => setForm({ ...form, tipo: 'receita', categoria: '' })}
-                    className={`py-3 rounded-lg ${form.tipo === 'receita' ? 'bg-green-600' : 'bg-gray-700'}`}
-                  >
-                    Receita
-                  </button>
-                </div>
-              </div>
+    <div className="space-y-5">
+      <div>
+        <label className="block text-sm mb-2 font-medium">Tipo</label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setForm({ ...form, tipo: 'gasto', categoria: '' })}
+            className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
+              form.tipo === 'gasto' ? 'bg-red-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
+            }`}
+          >
+            💸 Gasto
+          </button>
+          <button
+            onClick={() => setForm({ ...form, tipo: 'receita', categoria: '' })}
+            className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
+              form.tipo === 'receita' ? 'bg-green-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
+            }`}
+          >
+            💰 Receita
+          </button>
+        </div>
+      </div>
 
-              <div>
-                <label className="block text-sm mb-2">Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.valor}
-                  onChange={(e) => setForm({ ...form, valor: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                  placeholder="0.00"
-                />
-              </div>
+      <div>
+        <label className="block text-sm mb-2 font-medium">Valor (R$)</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          value={form.valor}
+          onChange={(e) => setForm({ ...form, valor: e.target.value })}
+          className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+          placeholder="0,00"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm mb-2">Categoria</label>
-                <select
-                  value={form.categoria}
-                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                >
-                  <option value="">Selecione...</option>
-                  {form.tipo === 'receita' ? (
-                    categorias.receitas.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                  ) : (
-                    <>
-                      <optgroup label="Fixos">
-                        {categorias.fixos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                      <optgroup label="Variáveis">
-                        {categorias.variaveis.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                    </>
-                  )}
-                </select>
-              </div>
+      <div>
+        <label className="block text-sm mb-2 font-medium">Categoria</label>
+        <select
+          value={form.categoria}
+          onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+          className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+        >
+          <option value="">Selecione...</option>
+          {form.tipo === 'receita' ? (
+            categorias.receitas.map(cat => <option key={cat} value={cat}>{cat}</option>)
+          ) : (
+            <>
+              <optgroup label="⚡ Fixos">
+                {categorias.fixos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </optgroup>
+              <optgroup label="🔄 Variáveis">
+                {categorias.variaveis.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </optgroup>
+            </>
+          )}
+        </select>
+      </div>
 
-              <div>
-                <label className="block text-sm mb-2">Data</label>
-                <input
-                  type="date"
-                  value={form.data}
-                  onChange={(e) => setForm({ ...form, data: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                />
-              </div>
+      <div>
+        <label className="block text-sm mb-2 font-medium">Data</label>
+        <input
+          type="date"
+          value={form.data}
+          onChange={(e) => setForm({ ...form, data: e.target.value })}
+          className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm mb-2">Descrição</label>
-                <input
-                  type="text"
-                  value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                  placeholder="Ex: Fatura Bradesco"
-                />
-              </div>
+      <div>
+        <label className="block text-sm mb-2 font-medium">Descrição (opcional)</label>
+        <input
+          type="text"
+          value={form.descricao}
+          onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+          className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+          placeholder="Ex: Fatura Bradesco"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm mb-2 font-medium">Parcelas</label>
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={form.parcelas}
-                    onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
-                    className="w-28 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-center font-semibold"
-                  />
-                  <span className="text-sm text-gray-400">
-                    {form.parcelas > 1 && form.valor 
-                      ? `${form.parcelas}x de R$ ${(parseFloat(form.valor || 0) / parseInt(form.parcelas || 1)).toFixed(2)}`
-                      : 'À vista (1x)'}
-                  </span>
-                </div>
-                {form.parcelas > 1 && (
-                  <p className="text-xs text-blue-400 mt-2">
-                    💡 Serão criadas {form.parcelas} transações mensais automaticamente
-                  </p>
-                )}
-              </div>
-
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.fixo}
-                    onChange={(e) => setForm({ ...form, fixo: e.target.checked })}
-                    className="w-5 h-5"
-                  />
-                  <span>Gasto Fixo</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.pago}
-                    onChange={(e) => setForm({ ...form, pago: e.target.checked })}
-                    className="w-5 h-5"
-                  />
-                  <span>Já Pago</span>
-                </label>
-              </div>
-
-              <button
-                onClick={adicionarTransacao}
-                className="w-full bg-green-600 hover:bg-green-700 py-4 rounded-lg font-bold"
-              >
-                {transacaoEdit ? 'Atualizar' : 'Adicionar'}
-              </button>
-            </div>
-          </div>
+      <div>
+        <label className="block text-sm mb-2 font-medium">Parcelas</label>
+        <div className="flex gap-3 items-center">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="60"
+            value={form.parcelas}
+            onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
+            className="w-24 bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-center font-semibold focus:border-blue-500 focus:outline-none min-h-[52px]"
+          />
+          <span className="text-sm text-gray-400 flex-1">
+            {form.parcelas > 1 && form.valor 
+              ? `${form.parcelas}x de R$ ${(parseFloat(form.valor || 0) / parseInt(form.parcelas || 1)).toFixed(2)}`
+              : 'À vista (1x)'}
+          </span>
+        </div>
+        {form.parcelas > 1 && (
+          <p className="text-xs text-blue-400 mt-2 p-3 bg-blue-600/10 rounded-lg">
+            💡 Serão criadas {form.parcelas} transações mensais automaticamente
+          </p>
         )}
       </div>
 
-      {/* Botão Flutuante de Lançamento Rápido - Otimizado iPhone */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <label className="flex items-center gap-3 bg-gray-700/50 p-4 rounded-xl cursor-pointer min-h-[52px]">
+          <input
+            type="checkbox"
+            checked={form.fixo}
+            onChange={(e) => setForm({ ...form, fixo: e.target.checked })}
+            className="w-6 h-6 rounded"
+          />
+          <span className="font-medium">Gasto Fixo</span>
+        </label>
+        <label className="flex items-center gap-3 bg-gray-700/50 p-4 rounded-xl cursor-pointer min-h-[52px]">
+          <input
+            type="checkbox"
+            checked={form.pago}
+            onChange={(e) => setForm({ ...form, pago: e.target.checked })}
+            className="w-6 h-6 rounded"
+          />
+          <span className="font-medium">Já Pago</span>
+        </label>
+      </div>
+
+      <button
+        onClick={adicionarTransacao}
+        className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
+      >
+        {transacaoEdit ? '✅ Atualizar' : '✅ Adicionar'}
+      </button>
+    </div>
+  </div>
+)}
+
+   {/* Botão Flutuante - Tamanho Ideal */}
 <button
   onClick={() => setModalRapido(true)}
-  className="fixed bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 rounded-full shadow-2xl flex items-center justify-center z-30 transition-all active:scale-95"
+  className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-green-600 to-green-500 rounded-full shadow-2xl flex items-center justify-center z-30 transition-all active:scale-90"
   style={{
     bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
   }}
 >
-  <PlusCircle size={28} className="sm:hidden" />
-  <PlusCircle size={32} className="hidden sm:block" />
+  <PlusCircle size={26} strokeWidth={2.5} />
 </button>
 
     {/* Modal de Lançamento Rápido - Otimizado iPhone */}
@@ -1393,107 +1416,123 @@ const calcularVencimentos = () => {
 )}
       
 
-      {/* Modal Nova Caixinha */}
-      {modalCaixinha && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
-          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">🏦 Nova Caixinha</h2>
-              <button onClick={() => setModalCaixinha(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+    {/* Modal Nova Caixinha - Otimizado iPhone */}
+{modalCaixinha && (
+  <div 
+    className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-40"
+    onClick={() => setModalCaixinha(false)}
+  >
+    <div 
+      className="bg-gray-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl"
+      style={{
+        paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold">🏦 Nova Caixinha</h2>
+        <button 
+          onClick={() => setModalCaixinha(false)} 
+          className="text-gray-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <X size={24} />
+        </button>
+      </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-2">Nome</label>
-                <input
-                  type="text"
-                  value={formCaixinha.nome}
-                  onChange={(e) => setFormCaixinha({ ...formCaixinha, nome: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                  placeholder="Ex: Carro novo"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Valor Total (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formCaixinha.valor_total}
-                  onChange={(e) => setFormCaixinha({ ...formCaixinha, valor_total: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Quantidade de Parcelas</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formCaixinha.parcelas_total}
-                  onChange={(e) => setFormCaixinha({ ...formCaixinha, parcelas_total: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3"
-                />
-                {formCaixinha.valor_total && formCaixinha.parcelas_total && (
-                  <div className="text-sm text-gray-400 mt-2">
-                    Parcela: R$ {(parseFloat(formCaixinha.valor_total) / parseInt(formCaixinha.parcelas_total)).toFixed(2)}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (!formCaixinha.nome || !formCaixinha.valor_total || !formCaixinha.parcelas_total) {
-                    alert('Preencha todos os campos');
-                    return;
-                  }
-
-                  try {
-                   const response = await fetch(`${API_URL}/api/caixinhas`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        usuario_id: usuario.id,
-                        ...formCaixinha,
-                        valor_total: parseFloat(formCaixinha.valor_total),
-                        parcelas_total: parseInt(formCaixinha.parcelas_total)
-                      })
-                    });
-
-                    const dados = await response.json();
-                    
-                    setCaixinhas([{
-                      id: dados.id,
-                      ...formCaixinha,
-                      usuario_id: usuario.id,
-                      valor_total: parseFloat(formCaixinha.valor_total),
-                      valor_pago: 0,
-                      parcelas_total: parseInt(formCaixinha.parcelas_total),
-                      parcelas_pagas: 0
-                    }, ...caixinhas]);
-
-                    setFormCaixinha({
-                      nome: '',
-                      valor_total: '',
-                      parcelas_total: '',
-                      data_inicio: new Date().toISOString().slice(0, 10)
-                    });
-                    setModalCaixinha(false);
-                  } catch (err) {
-                    console.error("Erro ao criar:", err);
-                    alert('Erro ao criar caixinha');
-                  }
-                }}
-                className="w-full bg-green-600 hover:bg-green-700 py-4 rounded-lg font-bold"
-              >
-                Criar Caixinha
-              </button>
-            </div>
-          </div>
+      <div className="space-y-5">
+        <div>
+          <label className="block text-sm mb-2 font-medium">Nome</label>
+          <input
+            type="text"
+            value={formCaixinha.nome}
+            onChange={(e) => setFormCaixinha({ ...formCaixinha, nome: e.target.value })}
+            className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+            placeholder="Ex: Carro novo"
+          />
         </div>
-      )}
+
+        <div>
+          <label className="block text-sm mb-2 font-medium">Valor Total (R$)</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={formCaixinha.valor_total}
+            onChange={(e) => setFormCaixinha({ ...formCaixinha, valor_total: e.target.value })}
+            className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+            placeholder="0,00"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-2 font-medium">Quantidade de Parcelas</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            value={formCaixinha.parcelas_total}
+            onChange={(e) => setFormCaixinha({ ...formCaixinha, parcelas_total: e.target.value })}
+            className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+            placeholder="12"
+          />
+          {formCaixinha.valor_total && formCaixinha.parcelas_total && (
+            <div className="text-sm text-gray-400 mt-2 p-3 bg-gray-700/50 rounded-lg">
+              💡 Parcela: R$ {(parseFloat(formCaixinha.valor_total) / parseInt(formCaixinha.parcelas_total)).toFixed(2)}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={async () => {
+            if (!formCaixinha.nome || !formCaixinha.valor_total || !formCaixinha.parcelas_total) {
+              alert('Preencha todos os campos');
+              return;
+            }
+
+            try {
+              const response = await fetch(`${API_URL}/api/caixinhas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  usuario_id: usuario.id,
+                  ...formCaixinha,
+                  valor_total: parseFloat(formCaixinha.valor_total),
+                  parcelas_total: parseInt(formCaixinha.parcelas_total)
+                })
+              });
+
+              const dados = await response.json();
+              
+              setCaixinhas([{
+                id: dados.id,
+                ...formCaixinha,
+                usuario_id: usuario.id,
+                valor_total: parseFloat(formCaixinha.valor_total),
+                valor_pago: 0,
+                parcelas_total: parseInt(formCaixinha.parcelas_total),
+                parcelas_pagas: 0
+              }, ...caixinhas]);
+
+              setFormCaixinha({
+                nome: '',
+                valor_total: '',
+                parcelas_total: '',
+                data_inicio: new Date().toISOString().slice(0, 10)
+              });
+              setModalCaixinha(false);
+            } catch (err) {
+              console.error("Erro ao criar:", err);
+              alert('Erro ao criar caixinha');
+            }
+          }}
+          className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
+        >
+          Criar Caixinha
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
