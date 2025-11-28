@@ -504,45 +504,90 @@ const calcularVencimentos = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 pb-20">
+  <div 
+    className="min-h-screen bg-gray-900 text-gray-100"
+    style={{
+      paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom)))'
+    }}
+  >
+
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold">💰 Finanças</h1>
-              <p className="text-xs text-gray-400">Olá, {usuario.nome}</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setTela('dashboard')} className={`px-3 py-1.5 rounded text-sm ${tela === 'dashboard' ? 'bg-blue-600' : 'bg-gray-700'}`}>
-                Dashboard
-              </button>
-              <button 
-  onClick={() => setTela('transacoes')} 
-  className={`px-3 py-1.5 rounded text-sm relative ${tela === 'transacoes' ? 'bg-blue-600' : 'bg-gray-700'}`}
+     
+<div 
+  className="bg-gray-800 border-b border-gray-700 sticky top-0 z-20"
+  style={{ 
+    paddingTop: 'max(1rem, env(safe-area-inset-top))',
+  }}
 >
-  Transações
-  {calcularVencimentos().totalVencendo > 0 && (
-    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
-      {calcularVencimentos().totalVencendo}
-    </span>
-  )}
-</button>
-              <button onClick={() => setTela('caixinhas')} className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 ${tela === 'caixinhas' ? 'bg-blue-600' : 'bg-gray-700'}`}>
-                <Wallet size={16} />
-                Caixinhas
-              </button>
-              <button onClick={() => setTela('relatorios')} className={`px-3 py-1.5 rounded text-sm ${tela === 'relatorios' ? 'bg-blue-600' : 'bg-gray-700'}`}>
-                Relatórios
-              </button>
-              <button onClick={onLogout} className="px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 flex items-center gap-1 text-sm">
-                <LogOut size={16} />
-                Sair
-              </button>
-            </div>
-          </div>
-        </div>
+  <div className="max-w-6xl mx-auto px-4 pb-4">
+    <div className="flex items-center justify-between mb-3">
+      <div>
+        <h1 className="text-xl font-bold">💰 Finanças</h1>
+        <p className="text-xs text-gray-400">Olá, {usuario.nome}</p>
       </div>
+      <button 
+        onClick={onLogout} 
+        className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 flex items-center gap-1 text-sm min-h-[44px]"
+      >
+        <LogOut size={16} />
+        Sair
+      </button>
+    </div>
+    
+    {/* Tabs com scroll horizontal para mobile */}
+    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+      <button 
+        onClick={() => setTela('dashboard')} 
+        className={`px-4 py-2.5 rounded-lg text-sm whitespace-nowrap min-h-[44px] flex-shrink-0 transition-all ${
+          tela === 'dashboard' ? 'bg-blue-600 scale-105' : 'bg-gray-700'
+        }`}
+      >
+        Dashboard
+      </button>
+      <button 
+        onClick={() => setTela('transacoes')} 
+        className={`px-4 py-2.5 rounded-lg text-sm relative whitespace-nowrap min-h-[44px] flex-shrink-0 transition-all ${
+          tela === 'transacoes' ? 'bg-blue-600 scale-105' : 'bg-gray-700'
+        }`}
+      >
+        Transações
+        {calcularVencimentos().totalVencendo > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
+            {calcularVencimentos().totalVencendo}
+          </span>
+        )}
+      </button>
+      <button 
+        onClick={() => setTela('caixinhas')} 
+        className={`px-4 py-2.5 rounded-lg text-sm flex items-center gap-1 whitespace-nowrap min-h-[44px] flex-shrink-0 transition-all ${
+          tela === 'caixinhas' ? 'bg-blue-600 scale-105' : 'bg-gray-700'
+        }`}
+      >
+        <Wallet size={16} />
+        Caixinhas
+      </button>
+      <button 
+        onClick={() => setTela('relatorios')} 
+        className={`px-4 py-2.5 rounded-lg text-sm whitespace-nowrap min-h-[44px] flex-shrink-0 transition-all ${
+          tela === 'relatorios' ? 'bg-blue-600 scale-105' : 'bg-gray-700'
+        }`}
+      >
+        Relatórios
+      </button>
+    </div>
+  </div>
+</div>
+
+{/* Adicionar CSS para esconder scrollbar */}
+<style jsx>{`
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`}</style>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Dashboard - Versão Clean */}
@@ -1223,110 +1268,130 @@ const calcularVencimentos = () => {
         )}
       </div>
 
-      {/* Botão Flutuante de Lançamento Rápido */}
-      <button
-        onClick={() => setModalRapido(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 bg-green-600 hover:bg-green-700 rounded-full shadow-2xl flex items-center justify-center z-30 transition-transform hover:scale-110"
-      >
-        <PlusCircle size={32} />
-      </button>
+      {/* Botão Flutuante de Lançamento Rápido - Otimizado iPhone */}
+<button
+  onClick={() => setModalRapido(true)}
+  className="fixed bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 rounded-full shadow-2xl flex items-center justify-center z-30 transition-all active:scale-95"
+  style={{
+    bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
+  }}
+>
+  <PlusCircle size={28} className="sm:hidden" />
+  <PlusCircle size={32} className="hidden sm:block" />
+</button>
 
-      {/* Modal de Lançamento Rápido */}
-      {modalRapido && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
-          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">⚡ Lançamento Rápido</h2>
-              <button onClick={() => setModalRapido(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+    {/* Modal de Lançamento Rápido - Otimizado iPhone */}
+{modalRapido && (
+  <div 
+    className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-40"
+    onClick={() => setModalRapido(false)}
+  >
+    <div 
+      className="bg-gray-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl transform transition-transform"
+      style={{
+        paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold">⚡ Lançamento Rápido</h2>
+        <button 
+          onClick={() => setModalRapido(false)} 
+          className="text-gray-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <X size={24} />
+        </button>
+      </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-2 font-medium">Tipo</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setFormRapido({ ...formRapido, tipo: 'gasto', categoria: '' })}
-                    className={`py-3 rounded-lg font-semibold transition-all ${formRapido.tipo === 'gasto' ? 'bg-red-600 scale-105' : 'bg-gray-700'}`}
-                  >
-                    💸 Gasto
-                  </button>
-                  <button
-                    onClick={() => setFormRapido({ ...formRapido, tipo: 'receita', categoria: '' })}
-                    className={`py-3 rounded-lg font-semibold transition-all ${formRapido.tipo === 'receita' ? 'bg-green-600 scale-105' : 'bg-gray-700'}`}
-                  >
-                    💰 Receita
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formRapido.valor}
-                  onChange={(e) => setFormRapido({ ...formRapido, valor: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:outline-none"
-                  placeholder="0.00"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Categoria</label>
-                <select
-                  value={formRapido.categoria}
-                  onChange={(e) => setFormRapido({ ...formRapido, categoria: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-lg px-4 py-3 text-base focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">Selecione...</option>
-                  {formRapido.tipo === 'receita' ? (
-                    categorias.receitas.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                  ) : (
-                    <>
-                      <optgroup label="⚡ Fixos">
-                        {categorias.fixos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                      <optgroup label="🔄 Variáveis">
-                        {categorias.variaveis.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={salvarRapido}
-                  className="w-full bg-green-600 hover:bg-green-700 py-4 rounded-lg font-bold text-lg shadow-lg transition-transform hover:scale-105"
-                >
-                  ✅ Salvar Agora
-                </button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    setForm({
-                      ...form,
-                      valor: formRapido.valor,
-                      categoria: formRapido.categoria,
-                      tipo: formRapido.tipo
-                    });
-                    setModalRapido(false);
-                    setTela('adicionar');
-                  }}
-                  className="text-sm text-blue-400 hover:text-blue-300"
-                >
-                  Ou adicionar mais detalhes →
-                </button>
-              </div>
-            </div>
+      <div className="space-y-5">
+        <div>
+          <label className="block text-sm mb-2 font-medium">Tipo</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setFormRapido({ ...formRapido, tipo: 'gasto', categoria: '' })}
+              className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
+                formRapido.tipo === 'gasto' ? 'bg-red-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
+              }`}
+            >
+              💸 Gasto
+            </button>
+            <button
+              onClick={() => setFormRapido({ ...formRapido, tipo: 'receita', categoria: '' })}
+              className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
+                formRapido.tipo === 'receita' ? 'bg-green-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
+              }`}
+            >
+              💰 Receita
+            </button>
           </div>
         </div>
-      )}
+
+        <div>
+          <label className="block text-sm mb-2 font-medium">Valor (R$)</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={formRapido.valor}
+            onChange={(e) => setFormRapido({ ...formRapido, valor: e.target.value })}
+            className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+            placeholder="0,00"
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-2 font-medium">Categoria</label>
+          <select
+            value={formRapido.categoria}
+            onChange={(e) => setFormRapido({ ...formRapido, categoria: e.target.value })}
+            className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-base focus:border-blue-500 focus:outline-none min-h-[52px]"
+          >
+            <option value="">Selecione...</option>
+            {formRapido.tipo === 'receita' ? (
+              categorias.receitas.map(cat => <option key={cat} value={cat}>{cat}</option>)
+            ) : (
+              <>
+                <optgroup label="⚡ Fixos">
+                  {categorias.fixos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </optgroup>
+                <optgroup label="🔄 Variáveis">
+                  {categorias.variaveis.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </optgroup>
+              </>
+            )}
+          </select>
+        </div>
+
+        <div className="pt-2 space-y-3">
+          <button
+            onClick={salvarRapido}
+            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
+          >
+            ✅ Salvar Agora
+          </button>
+
+          <button
+            onClick={() => {
+              setForm({
+                ...form,
+                valor: formRapido.valor,
+                categoria: formRapido.categoria,
+                tipo: formRapido.tipo
+              });
+              setModalRapido(false);
+              setTela('adicionar');
+            }}
+            className="w-full text-sm text-blue-400 hover:text-blue-300 py-3 min-h-[44px]"
+          >
+            Ou adicionar mais detalhes →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+      
 
       {/* Modal Nova Caixinha */}
       {modalCaixinha && (
