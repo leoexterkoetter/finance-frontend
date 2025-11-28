@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Calendar, Filter, Download, Edit2, Copy, Trash2, Save, X, Home, CreditCard, Car, ShoppingCart, Utensils, Pill, Zap, Wifi, Smartphone, Music, CheckCircle, AlertCircle, BarChart3, LogOut, Wallet } from 'lucide-react';
+import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Filter, Download, Edit2, Trash2, X, Home, CreditCard, Car, ShoppingCart, Pill, Zap, Wifi, Smartphone, Music, CheckCircle, AlertCircle, BarChart3, LogOut, Wallet, Calendar, Repeat } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import PeriodSelector from './components/PeriodSelector';
+import DateSelector from './components/DateSelector';
+import InsightCard from './components/InsightCard';
 import { exportarPDF } from './services/pdfExport';
 
 const API_URL = 'https://finance-backend-production-8578.up.railway.app';
@@ -36,28 +37,23 @@ const FinanceApp = ({ usuario, onLogout }) => {
   const [tela, setTela] = useState('dashboard');
   const [modalRapido, setModalRapido] = useState(false);
   const [modalCaixinha, setModalCaixinha] = useState(false);
+  const [modalEditCaixinha, setModalEditCaixinha] = useState(false);
+  const [caixinhaEdit, setCaixinhaEdit] = useState(null);
   const [transacoes, setTransacoes] = useState([]);
   const [caixinhas, setCaixinhas] = useState([]);
-  const [categorias] = useState(CATEGORIAS_PADRAO); // ✅ CORREÇÃO 1: Removido setCategorias (não usado)
+  const [categorias] = useState(CATEGORIAS_PADRAO);
   const [mesAtual, setMesAtual] = useState(new Date().toISOString().slice(0, 7));
   const [filtros, setFiltros] = useState({ categoria: 'todas', tipo: 'todos' });
-  const [transacaoEdit, setTransacaoEdit] = useState(null);
 
-  const [form, setForm] = useState({
+  // ✅ NOVO: Form Rápido COMPLETO
+  const [formRapido, setFormRapido] = useState({
     valor: '',
     categoria: '',
     tipo: 'gasto',
     data: new Date().toISOString().slice(0, 10),
-    descricao: '',
-    fixo: false,
-    pago: false,
-    parcelas: 1
-  });
-
-  const [formRapido, setFormRapido] = useState({
-    valor: '',
-    categoria: '',
-    tipo: 'gasto'
+    parcelas: 1,
+    recorrencia: 'nenhuma', // nenhuma, mensal, semanal
+    dataFinal: ''
   });
 
   const [formCaixinha, setFormCaixinha] = useState({
@@ -67,70 +63,30 @@ const FinanceApp = ({ usuario, onLogout }) => {
     data_inicio: new Date().toISOString().slice(0, 10)
   });
 
-  // ✅ CORREÇÃO 2: Função gerarGastosFixosAutomaticos movida ANTES do useEffect
-  const gerarGastosFixosAutomaticos = () => {
-    const dados = JSON.parse(localStorage.getItem('financeData') || '{}');
-    const trans = dados.transacoes || [];
-    const mesAtualDate = new Date();
-    const mesAtualStr = mesAtualDate.toISOString().slice(0, 7);
-    
-    const fixosDoMes = trans.filter(t => 
-      t.fixo && 
-      t.tipo === 'gasto' && 
-      t.data.startsWith(mesAtualStr)
-    );
-
-    if (fixosDoMes.length === 0) {
-      const mesAnterior = new Date(mesAtualDate.getFullYear(), mesAtualDate.getMonth() - 1, 1);
-      const mesAnteriorStr = mesAnterior.toISOString().slice(0, 7);
-      
-      const fixosAnteriores = trans.filter(t => 
-        t.fixo && 
-        t.tipo === 'gasto' && 
-        t.data.startsWith(mesAnteriorStr)
-      );
-
-      const novosFixos = fixosAnteriores.map(t => ({
-        ...t,
-        id: Date.now() + Math.random(),
-        data: `${mesAtualStr}-${t.data.slice(8)}`,
-        pago: false
-      }));
-
-      if (novosFixos.length > 0) {
-        setTransacoes(prev => [...prev, ...novosFixos]); // ✅ CORREÇÃO 3: Usar função de callback
-      }
-    }
-  };
-
-  // Carregar transações do backend
+  // Carregar transações
   useEffect(() => {
     const carregarTransacoes = async () => {
       try {
         const response = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
         if (response.ok) {
           const dados = await response.json();
-          
           const transacoesFormatadas = dados.map(t => ({
             ...t,
-            id: t._id || t.id, // ✅ Usar _id do MongoDB
+            id: t._id || t.id,
             valor: parseFloat(t.valor),
             fixo: Boolean(t.fixo),
             pago: Boolean(t.pago)
           }));
-          
           setTransacoes(transacoesFormatadas);
         }
       } catch (err) {
         console.error("Erro ao carregar transações:", err);
-        alert("Erro ao conectar com o servidor. Verifique se o backend está rodando.");
       }
     };
     carregarTransacoes();
-    gerarGastosFixosAutomaticos();
-  }, [usuario.id]); // ✅ CORREÇÃO 4: Adicionar dependências corretas
+  }, [usuario.id]);
 
-  // Carregar caixinhas do backend
+  // Carregar caixinhas
   useEffect(() => {
     const carregarCaixinhas = async () => {
       try {
@@ -139,9 +95,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
           const dados = await response.json();
           const caixinhasFormatadas = dados.map(c => ({
             ...c,
-            id: c._id || c.id, // ✅ CORREÇÃO 5: Adicionar fallback para id
+            id: c._id || c.id,
             valor_total: parseFloat(c.valor_total),
-            valor_pago: parseFloat(c.valor_pago || 0) // ✅ CORREÇÃO 6: Fallback para valor_pago
+            valor_pago: parseFloat(c.valor_pago || 0)
           }));
           setCaixinhas(caixinhasFormatadas);
         }
@@ -152,142 +108,105 @@ const FinanceApp = ({ usuario, onLogout }) => {
     carregarCaixinhas();
   }, [usuario.id]);
 
-  // Lançamento rápido (modal)
+  // ✅ MELHORADO: Salvar Rápido com Recorrência
   const salvarRapido = async () => {
     if (!formRapido.valor || !formRapido.categoria) {
       alert('Preencha valor e categoria');
       return;
     }
 
-    const novaTransacao = {
-      usuario_id: usuario.id,
-      valor: parseFloat(formRapido.valor),
-      categoria: formRapido.categoria,
-      tipo: formRapido.tipo,
-      data: new Date().toISOString().slice(0, 10),
-      descricao: '',
-      fixo: false,
-      pago: false
-    };
-    
-    try {
-      const response = await fetch(`${API_URL}/api/transacoes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaTransacao)
-      });
-
-      const dados = await response.json();
-      setTransacoes(prev => [...prev, { ...novaTransacao, id: dados.id }]); // ✅ CORREÇÃO 7: Callback
-      setFormRapido({ valor: '', categoria: '', tipo: 'gasto' });
-      setModalRapido(false);
-    } catch (err) {
-      console.error("Erro ao salvar:", err);
-      alert("Erro ao salvar transação");
-    }
-  };
-
-  const adicionarTransacao = async () => {
-    if (!form.valor || !form.categoria) {
-      alert('Preencha valor e categoria');
+    // Verificar recorrência
+    if (formRapido.recorrencia !== 'nenhuma' && !formRapido.dataFinal) {
+      alert('Selecione a data final para transações recorrentes');
       return;
     }
 
-    const novaTransacao = {
-      usuario_id: usuario.id,
-      valor: parseFloat(form.valor),
-      categoria: form.categoria,
-      tipo: form.tipo,
-      data: form.data,
-      descricao: form.descricao,
-      fixo: form.fixo,
-      pago: form.pago,
-      parcelas: parseInt(form.parcelas) || 1
-    };
-
     try {
-      if (transacaoEdit) {
-        // ATUALIZAR (sem parcelas)
-        await fetch(`${API_URL}/api/transacoes/${transacaoEdit.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(novaTransacao)
-        });
-        
-        setTransacoes(prev => prev.map(t => 
-          t.id === transacaoEdit.id ? { ...novaTransacao, id: transacaoEdit.id } : t
-        )); // ✅ CORREÇÃO 8: Callback
-      } else {
-        // CRIAR (com ou sem parcelas)
-        const endpoint = novaTransacao.parcelas > 1 
+      if (formRapido.recorrencia === 'nenhuma') {
+        // Transação única ou parcelada
+        const endpoint = formRapido.parcelas > 1 
           ? `${API_URL}/api/transacoes/parcelada`
           : `${API_URL}/api/transacoes`;
-        
+
         await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(novaTransacao)
+          body: JSON.stringify({
+            usuario_id: usuario.id,
+            valor: parseFloat(formRapido.valor),
+            categoria: formRapido.categoria,
+            tipo: formRapido.tipo,
+            data: formRapido.data,
+            descricao: '',
+            fixo: false,
+            pago: false,
+            parcelas: parseInt(formRapido.parcelas) || 1
+          })
         });
-        
-        // Recarrega as transações do banco
-        const responseTransacoes = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
-        const todasTransacoes = await responseTransacoes.json();
-        const transacoesFormatadas = todasTransacoes.map(t => ({
-          ...t,
-          id: t._id || t.id, // ✅ CORREÇÃO 9: Adicionar fallback
-          valor: parseFloat(t.valor),
-          fixo: Boolean(t.fixo),
-          pago: Boolean(t.pago)
-        }));
-        setTransacoes(transacoesFormatadas);
-        
-        if (novaTransacao.parcelas > 1) {
-          alert(`✅ ${novaTransacao.parcelas} parcelas criadas com sucesso!`);
+      } else {
+        // Transações recorrentes (mensal ou semanal)
+        const dataInicio = new Date(formRapido.data);
+        const dataFim = new Date(formRapido.dataFinal);
+        const transacoesRecorrentes = [];
+
+        let dataAtual = new Date(dataInicio);
+        while (dataAtual <= dataFim) {
+          transacoesRecorrentes.push({
+            usuario_id: usuario.id,
+            valor: parseFloat(formRapido.valor),
+            categoria: formRapido.categoria,
+            tipo: formRapido.tipo,
+            data: dataAtual.toISOString().slice(0, 10),
+            descricao: `Recorrente ${formRapido.recorrencia}`,
+            fixo: formRapido.recorrencia === 'mensal',
+            pago: false
+          });
+
+          // Avançar data
+          if (formRapido.recorrencia === 'mensal') {
+            dataAtual.setMonth(dataAtual.getMonth() + 1);
+          } else if (formRapido.recorrencia === 'semanal') {
+            dataAtual.setDate(dataAtual.getDate() + 7);
+          }
         }
+
+        // Criar todas as transações
+        for (const trans of transacoesRecorrentes) {
+          await fetch(`${API_URL}/api/transacoes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(trans)
+          });
+        }
+
+        alert(`✅ ${transacoesRecorrentes.length} transações recorrentes criadas!`);
       }
 
-      setForm({
+      // Recarregar transações
+      const response = await fetch(`${API_URL}/api/transacoes/${usuario.id}`);
+      const dados = await response.json();
+      const transacoesFormatadas = dados.map(t => ({
+        ...t,
+        id: t._id || t.id,
+        valor: parseFloat(t.valor),
+        fixo: Boolean(t.fixo),
+        pago: Boolean(t.pago)
+      }));
+      setTransacoes(transacoesFormatadas);
+
+      setFormRapido({
         valor: '',
         categoria: '',
         tipo: 'gasto',
         data: new Date().toISOString().slice(0, 10),
-        descricao: '',
-        fixo: false,
-        pago: false,
-        parcelas: 1
+        parcelas: 1,
+        recorrencia: 'nenhuma',
+        dataFinal: ''
       });
-      setTransacaoEdit(null);
-      setTela('dashboard');
+      setModalRapido(false);
     } catch (err) {
       console.error("Erro ao salvar:", err);
       alert("Erro ao salvar transação");
-    }
-  };
-
-  const duplicarTransacao = async (t) => {
-    const novaTransacao = {
-      usuario_id: usuario.id,
-      valor: t.valor,
-      categoria: t.categoria,
-      tipo: t.tipo,
-      data: new Date().toISOString().slice(0, 10),
-      descricao: t.descricao,
-      fixo: t.fixo,
-      pago: false
-    };
-
-    try {
-      const response = await fetch(`${API_URL}/api/transacoes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaTransacao)
-      });
-
-      const dados = await response.json();
-      setTransacoes(prev => [...prev, { ...novaTransacao, id: dados.id }]); // ✅ CORREÇÃO 10: Callback
-    } catch (err) {
-      console.error("Erro ao duplicar:", err);
-      alert("Erro ao duplicar transação");
     }
   };
 
@@ -298,7 +217,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
         await fetch(`${API_URL}/api/transacoes/${id}`, {
           method: 'DELETE'
         });
-        setTransacoes(prev => prev.filter(t => t.id !== id)); // ✅ CORREÇÃO 11: Callback
+        setTransacoes(prev => prev.filter(t => t.id !== id));
       } catch (err) {
         console.error("Erro ao deletar:", err);
         alert("Erro ao deletar transação");
@@ -306,25 +225,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
     }
   };
 
-  const editarTransacao = (t) => {
-    setTransacaoEdit(t);
-    setForm({
-      valor: t.valor.toString(),
-      categoria: t.categoria,
-      tipo: t.tipo,
-      data: t.data,
-      descricao: t.descricao || '', // ✅ CORREÇÃO 12: Fallback para descrição
-      fixo: t.fixo,
-      pago: t.pago,
-      parcelas: 1
-    });
-    setTela('adicionar');
-  };
-
   const togglePago = async (id) => {
     const transacao = transacoes.find(t => t.id === id);
-    
-    if (!transacao) return; // ✅ CORREÇÃO 13: Validação
+    if (!transacao) return;
     
     try {
       await fetch(`${API_URL}/api/transacoes/${id}`, {
@@ -338,7 +241,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
       
       setTransacoes(prev => prev.map(t => 
         t.id === id ? { ...t, pago: !t.pago } : t
-      )); // ✅ CORREÇÃO 14: Callback
+      ));
     } catch (err) {
       console.error("Erro ao atualizar:", err);
       alert("Erro ao atualizar status");
@@ -364,9 +267,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
     
     const em3Dias = new Date(hoje);
     em3Dias.setDate(em3Dias.getDate() + 3);
-    
-    const em7Dias = new Date(hoje);
-    em7Dias.setDate(em7Dias.getDate() + 7);
 
     const nãoPagas = transacoes.filter(t => 
       t.tipo === 'gasto' && 
@@ -384,15 +284,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
       return dataTransacao >= hoje && dataTransacao <= em3Dias;
     });
 
-    const vencem7Dias = nãoPagas.filter(t => {
-      const dataTransacao = new Date(t.data + 'T00:00:00');
-      return dataTransacao > em3Dias && dataTransacao <= em7Dias;
-    });
-
     return {
       vencidas,
       vencem3Dias,
-      vencem7Dias,
       total: nãoPagas.length,
       totalVencendo: vencidas.length + vencem3Dias.length
     };
@@ -402,7 +296,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
     const transacoesMes = transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'gasto');
     const total = transacoesMes.reduce((sum, t) => sum + t.valor, 0);
     
-    if (total === 0) return []; // ✅ CORREÇÃO 15: Evitar divisão por zero
+    if (total === 0) return [];
     
     const porCategoria = {};
 
@@ -423,24 +317,46 @@ const FinanceApp = ({ usuario, onLogout }) => {
       .sort((a, b) => b.valor - a.valor);
   };
 
-  // Dados para gráfico de evolução (6 meses)
+  // ✅ MELHORADO: Só exibe meses com dados (6 meses antes e depois)
   const getEvolucaoMeses = () => {
-    const meses = [];
-    for (let i = 5; i >= -5; i--) {
-      const data = new Date();
-      data.setMonth(data.getMonth() - i);
-      const mesStr = data.toISOString().slice(0, 7);
+    const mesesComDados = new Set();
+    
+    // Identificar meses com transações
+    transacoes.forEach(t => {
+      const mesTransacao = t.data.slice(0, 7);
+      mesesComDados.add(mesTransacao);
+    });
+
+    if (mesesComDados.size === 0) {
+      return [];
+    }
+
+    const mesesOrdenados = Array.from(mesesComDados).sort();
+    const mesAtualIndex = mesesOrdenados.indexOf(mesAtual);
+    
+    let mesesExibir = [];
+    if (mesAtualIndex === -1) {
+      // Se mês atual não tem dados, pega últimos 6 meses com dados
+      mesesExibir = mesesOrdenados.slice(-6);
+    } else {
+      // Pega 3 antes e 3 depois do mês atual (se existirem)
+      const inicio = Math.max(0, mesAtualIndex - 3);
+      const fim = Math.min(mesesOrdenados.length, mesAtualIndex + 4);
+      mesesExibir = mesesOrdenados.slice(inicio, fim);
+    }
+
+    return mesesExibir.map(mesStr => {
       const totais = calcularTotais(mesStr);
-      meses.push({
+      const data = new Date(mesStr + '-01');
+      return {
         mes: data.toLocaleDateString('pt-BR', { month: 'short' }),
+        mesCompleto: data.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
         gastos: totais.gastos,
         receitas: totais.receitas
-      });
-    }
-    return meses;
+      };
+    });
   };
 
-  // Previsão do próximo mês
   const calcularPrevisao = () => {
     const gastosMes = [];
     for (let i = 1; i <= 3; i++) {
@@ -480,7 +396,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
         t.data,
         t.tipo,
         t.categoria,
-        t.descricao || '', // ✅ CORREÇÃO 16: Fallback
+        t.descricao || '',
         t.valor,
         t.fixo ? 'Sim' : 'Não',
         t.pago ? 'Sim' : 'Não'
@@ -493,7 +409,60 @@ const FinanceApp = ({ usuario, onLogout }) => {
     a.href = url;
     a.download = `financas_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
-    URL.revokeObjectURL(url); // ✅ CORREÇÃO 17: Limpar memória
+    URL.revokeObjectURL(url);
+  };
+
+  // ✅ NOVO: Editar Caixinha
+  const editarCaixinha = async () => {
+    if (!formCaixinha.nome || !formCaixinha.valor_total || !formCaixinha.parcelas_total) {
+      alert('Preencha todos os campos');
+      return;
+    }
+
+    try {
+      await fetch(`${API_URL}/api/caixinhas/${caixinhaEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formCaixinha,
+          valor_total: parseFloat(formCaixinha.valor_total),
+          parcelas_total: parseInt(formCaixinha.parcelas_total)
+        })
+      });
+
+      setCaixinhas(prev => prev.map(c => c.id === caixinhaEdit.id ? {
+        ...c,
+        ...formCaixinha,
+        valor_total: parseFloat(formCaixinha.valor_total),
+        parcelas_total: parseInt(formCaixinha.parcelas_total)
+      } : c));
+
+      setFormCaixinha({
+        nome: '',
+        valor_total: '',
+        parcelas_total: '',
+        data_inicio: new Date().toISOString().slice(0, 10)
+      });
+      setCaixinhaEdit(null);
+      setModalEditCaixinha(false);
+    } catch (err) {
+      console.error("Erro ao editar:", err);
+      alert('Erro ao editar caixinha');
+    }
+  };
+
+  // ✅ NOVO: Calcular previsão de conclusão da caixinha
+  const calcularPrevisaoCaixinha = (caixinha) => {
+    if (caixinha.parcelas_pagas >= caixinha.parcelas_total) {
+      return 'Concluída! 🎉';
+    }
+
+    const faltam = caixinha.parcelas_total - caixinha.parcelas_pagas;
+    const dataInicio = new Date(caixinha.data_inicio || new Date());
+    const dataConclusao = new Date(dataInicio);
+    dataConclusao.setMonth(dataConclusao.getMonth() + caixinha.parcelas_total);
+
+    return `Prev: ${dataConclusao.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })} (${faltam} meses)`;
   };
 
   const totaisAtual = calcularTotais(mesAtual);
@@ -537,7 +506,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
             </button>
           </div>
           
-          {/* Tabs com scroll horizontal para mobile */}
+          {/* Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             <button 
               onClick={() => setTela('dashboard')} 
@@ -581,7 +550,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
         </div>
       </div>
 
-      {/* CSS para esconder scrollbar */}
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
@@ -596,10 +564,13 @@ const FinanceApp = ({ usuario, onLogout }) => {
         {/* Dashboard */}
         {tela === 'dashboard' && (
           <>
-            {/* Seletor de Mês */}
+            {/* ✅ Seletor de Datas ÚNICO */}
             <div className="mb-6">
-              <PeriodSelector value={mesAtual} onChange={setMesAtual} />
+              <DateSelector value={mesAtual} onChange={setMesAtual} />
             </div>
+
+            {/* ✅ NOVO: Insights Automáticos */}
+            <InsightCard transacoes={transacoes} mesAtual={mesAtual} />
 
             {/* Alert de Vencimentos */}
             {calcularVencimentos().totalVencendo > 0 && (
@@ -617,11 +588,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
                       {calcularVencimentos().vencem3Dias.length > 0 && (
                         <p className="text-orange-200">
                           • <strong>{calcularVencimentos().vencem3Dias.length}</strong> conta(s) vencem nos próximos 3 dias 🟡
-                        </p>
-                      )}
-                      {calcularVencimentos().vencem7Dias.length > 0 && (
-                        <p className="text-yellow-200">
-                          • <strong>{calcularVencimentos().vencem7Dias.length}</strong> conta(s) vencem esta semana
                         </p>
                       )}
                     </div>
@@ -667,20 +633,24 @@ const FinanceApp = ({ usuario, onLogout }) => {
 
             {/* Mini Gráfico de Evolução */}
             <div className="bg-gray-800 rounded-xl p-5 mb-6">
-              <h3 className="text-sm font-semibold mb-4 text-gray-300">Evolução dos últimos 6 meses</h3>
-              <ResponsiveContainer width="100%" height={140}>
-                <LineChart data={getEvolucaoMeses()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="mes" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
-                  <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
-                    formatter={(value) => `R$ ${value.toFixed(2)}`}
-                  />
-                  <Line type="monotone" dataKey="gastos" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="receitas" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <h3 className="text-sm font-semibold mb-4 text-gray-300">Evolução Mensal</h3>
+              {getEvolucaoMeses().length === 0 ? (
+                <p className="text-gray-400 text-center py-8 text-sm">Nenhum dado disponível</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={getEvolucaoMeses()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="mesCompleto" stroke="#9CA3AF" style={{ fontSize: '11px' }} />
+                    <YAxis stroke="#9CA3AF" style={{ fontSize: '11px' }} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
+                      formatter={(value) => `R$ ${value.toFixed(2)}`}
+                    />
+                    <Line type="monotone" dataKey="gastos" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="receitas" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             {/* Top 5 Categorias */}
@@ -730,6 +700,11 @@ const FinanceApp = ({ usuario, onLogout }) => {
         {/* Tela Transações */}
         {tela === 'transacoes' && (
           <>
+            {/* ✅ Seletor de Datas */}
+            <div className="mb-4">
+              <DateSelector value={mesAtual} onChange={setMesAtual} />
+            </div>
+
             {/* Filtros */}
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
               <h3 className="font-bold mb-3 flex items-center gap-2">
@@ -802,7 +777,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
                   {transacoesFiltradas.map(t => {
                     const cor = CATEGORIA_CONFIG[t.categoria]?.cor || '#6B7280';
                     
-                    // Verificar status de vencimento
                     const dataTransacao = new Date(t.data + 'T00:00:00');
                     const hoje = new Date();
                     hoje.setHours(0, 0, 0, 0);
@@ -820,9 +794,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                           ${vence3Dias ? 'border-l-4 border-orange-500 bg-orange-900/20' : ''}
                         `}
                       >
-                        {/* Linha Superior: Ícone + Info + Valor */}
                         <div className="flex items-start gap-3 mb-3">
-                          {/* Ícone */}
                           <div 
                             className="flex items-center justify-center w-12 h-12 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: cor + '30' }}
@@ -832,11 +804,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
                             </div>
                           </div>
                           
-                          {/* Info Central */}
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-base truncate mb-1">{t.categoria}</div>
                             
-                            {/* Badges */}
                             <div className="flex items-center gap-1.5 flex-wrap mb-1">
                               {t.fixo && <span className="text-xs bg-blue-600/60 px-2 py-0.5 rounded">Fixo</span>}
                               {t.pago && <span className="text-xs bg-green-600/60 px-2 py-0.5 rounded">✓ Pago</span>}
@@ -849,14 +819,12 @@ const FinanceApp = ({ usuario, onLogout }) => {
                               )}
                             </div>
                             
-                            {/* Descrição + Data */}
                             <div className="text-xs text-gray-400">
                               {t.descricao && <span className="block truncate mb-0.5">{t.descricao}</span>}
                               <span>{new Date(t.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                             </div>
                           </div>
 
-                          {/* Valor */}
                           <div className="text-right flex-shrink-0">
                             <div className={`font-bold text-lg ${t.tipo === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
                               {t.tipo === 'receita' ? '+' : '-'}R$ {t.valor.toFixed(2)}
@@ -864,7 +832,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
                           </div>
                         </div>
 
-                        {/* Botões de Ação */}
                         <div className="flex gap-2 pt-3 border-t border-gray-600/50">
                           <button 
                             onClick={() => togglePago(t.id)} 
@@ -875,14 +842,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
                             }`}
                           >
                             {t.pago ? '✓ Pago' : 'Marcar Pago'}
-                          </button>
-                          
-                          <button 
-                            onClick={() => editarTransacao(t)} 
-                            className="p-2.5 bg-gray-600 hover:bg-gray-500 rounded-lg transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                            title="Editar"
-                          >
-                            <Edit2 size={18} />
                           </button>
                           
                           <button 
@@ -930,24 +889,47 @@ const FinanceApp = ({ usuario, onLogout }) => {
                     <div key={c.id} className="bg-gray-800 rounded-lg p-5">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-bold text-lg">{c.nome}</h3>
-                        <button
-                          onClick={async () => {
-                            if (window.confirm('Deseja realmente deletar esta caixinha?')) {
-                              try {
-                                await fetch(`${API_URL}/api/caixinhas/${c.id}`, {
-                                  method: 'DELETE'
-                                });
-                                setCaixinhas(prev => prev.filter(cx => cx.id !== c.id));
-                              } catch (err) {
-                                console.error("Erro ao deletar:", err);
-                                alert("Erro ao deletar caixinha");
+                        <div className="flex gap-2">
+                          {/* ✅ NOVO: Botão Editar */}
+                          <button
+                            onClick={() => {
+                              setCaixinhaEdit(c);
+                              setFormCaixinha({
+                                nome: c.nome,
+                                valor_total: c.valor_total.toString(),
+                                parcelas_total: c.parcelas_total.toString(),
+                                data_inicio: c.data_inicio || new Date().toISOString().slice(0, 10)
+                              });
+                              setModalEditCaixinha(true);
+                            }}
+                            className="text-blue-400 hover:text-blue-300 p-2"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm('Deseja realmente deletar esta caixinha?')) {
+                                try {
+                                  await fetch(`${API_URL}/api/caixinhas/${c.id}`, {
+                                    method: 'DELETE'
+                                  });
+                                  setCaixinhas(prev => prev.filter(cx => cx.id !== c.id));
+                                } catch (err) {
+                                  console.error("Erro ao deletar:", err);
+                                  alert("Erro ao deletar caixinha");
+                                }
                               }
-                            }
-                          }}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                            }}
+                            className="text-red-400 hover:text-red-300 p-2"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* ✅ NOVO: Previsão de Conclusão */}
+                      <div className="text-sm text-gray-400 mb-3">
+                        {calcularPrevisaoCaixinha(c)}
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
@@ -1026,7 +1008,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
         {/* Tela Relatórios */}
         {tela === 'relatorios' && (
           <>
-            {/* Previsão do Próximo Mês */}
+            {/* Previsão */}
             <div className={`${calcularPrevisao().alerta ? 'bg-red-600/20 border-red-600/30' : 'bg-green-600/20 border-green-600/30'} border rounded-lg p-4 mb-4`}>
               <div className="flex items-center gap-2 mb-2">
                 {calcularPrevisao().alerta ? <AlertCircle size={20} className="text-red-400" /> : <CheckCircle size={20} className="text-green-400" />}
@@ -1049,95 +1031,107 @@ const FinanceApp = ({ usuario, onLogout }) => {
               )}
             </div>
 
-            {/* Ranking de Categorias */}
-            <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <h3 className="font-bold mb-4 flex items-center gap-2">
-                <BarChart3 size={20} />
-                Ranking de Gastos por Categoria
-              </h3>
-              {calcularPorCategoria().length === 0 ? (
-                <p className="text-gray-400 text-center py-4 text-sm">Nenhum gasto registrado neste mês</p>
-              ) : (
-                <div className="space-y-3">
-                  {calcularPorCategoria().map((item, idx) => (
-                    <div key={item.categoria}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold text-gray-500">#{idx + 1}</span>
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: item.cor + '40' }}>
-                            <div style={{ color: item.cor }}>
-                              <IconeCategoria categoria={item.categoria} tamanho={14} />
+            {/* ✅ MELHORADO: Gráfico de Pizza + Ranking LADO A LADO */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Gráfico de Pizza com Legenda */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <h3 className="font-bold mb-4">Distribuição de Gastos</h3>
+                {calcularPorCategoria().length === 0 ? (
+                  <p className="text-gray-400 text-center py-8 text-sm">Nenhum gasto para exibir</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={calcularPorCategoria()}
+                        dataKey="valor"
+                        nameKey="categoria"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ porcentagem }) => `${porcentagem}%`}
+                      >
+                        {calcularPorCategoria().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.cor} />
+                        ))}
+                      </Pie>
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        wrapperStyle={{ fontSize: '12px' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
+                        formatter={(value) => `R$ ${value.toFixed(2)}`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Ranking */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  <BarChart3 size={20} />
+                  Ranking por Categoria
+                </h3>
+                {calcularPorCategoria().length === 0 ? (
+                  <p className="text-gray-400 text-center py-4 text-sm">Nenhum gasto registrado</p>
+                ) : (
+                  <div className="space-y-3">
+                    {calcularPorCategoria().map((item, idx) => (
+                      <div key={item.categoria}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-gray-500">#{idx + 1}</span>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: item.cor + '40' }}>
+                              <div style={{ color: item.cor }}>
+                                <IconeCategoria categoria={item.categoria} tamanho={14} />
+                              </div>
                             </div>
+                            <span className="font-medium text-sm">{item.categoria}</span>
                           </div>
-                          <span className="font-medium text-sm">{item.categoria}</span>
+                          <div className="text-right">
+                            <div className="font-bold text-sm">R$ {item.valor.toFixed(2)}</div>
+                            <div className="text-xs text-gray-400">{item.porcentagem}%</div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-sm">R$ {item.valor.toFixed(2)}</div>
-                          <div className="text-xs text-gray-400">{item.porcentagem}%</div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full transition-all"
+                            style={{ width: `${item.porcentagem}%`, backgroundColor: item.cor }}
+                          ></div>
                         </div>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full transition-all"
-                          style={{ width: `${item.porcentagem}%`, backgroundColor: item.cor }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Gráfico de Pizza */}
+            {/* Evolução */}
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <h3 className="font-bold mb-4">Distribuição de Gastos</h3>
-              {calcularPorCategoria().length === 0 ? (
-                <p className="text-gray-400 text-center py-8 text-sm">Nenhum gasto para exibir</p>
+              <h3 className="font-bold mb-4">Evolução Mensal</h3>
+              {getEvolucaoMeses().length === 0 ? (
+                <p className="text-gray-400 text-center py-8 text-sm">Nenhum dado disponível</p>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={calcularPorCategoria()}
-                      dataKey="valor"
-                      nameKey="categoria"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ porcentagem }) => `${porcentagem}%`}
-                    >
-                      {calcularPorCategoria().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.cor} />
-                      ))}
-                    </Pie>
+                  <BarChart data={getEvolucaoMeses()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="mesCompleto" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
                       formatter={(value) => `R$ ${value.toFixed(2)}`}
                     />
-                  </PieChart>
+                    <Legend />
+                    <Bar dataKey="gastos" fill="#EF4444" name="Gastos" />
+                    <Bar dataKey="receitas" fill="#10B981" name="Receitas" />
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
 
-            {/* Evolução 6 Meses */}
-            <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <h3 className="font-bold mb-4">Evolução dos Últimos 6 Meses</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={getEvolucaoMeses()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="mes" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
-                    formatter={(value) => `R$ ${value.toFixed(2)}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="gastos" fill="#EF4444" name="Gastos" />
-                  <Bar dataKey="receitas" fill="#10B981" name="Receitas" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Exportar Dados */}
+            {/* Exportar */}
             <button
               onClick={() => exportarPDF(transacoes, totaisAtual, mesAtual, usuario, calcularPorCategoria())}
               className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2 mb-4"
@@ -1154,155 +1148,6 @@ const FinanceApp = ({ usuario, onLogout }) => {
             </button>
           </>
         )}
-
-        {/* Tela Adicionar */}
-        {tela === 'adicionar' && (
-          <div className="bg-gray-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">{transacaoEdit ? 'Editar Transação' : 'Nova Transação'}</h2>
-              <button 
-                onClick={() => { setTela('dashboard'); setTransacaoEdit(null); }} 
-                className="text-gray-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm mb-2 font-medium">Tipo</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setForm({ ...form, tipo: 'gasto', categoria: '' })}
-                    className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
-                      form.tipo === 'gasto' ? 'bg-red-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
-                    }`}
-                  >
-                    💸 Gasto
-                  </button>
-                  <button
-                    onClick={() => setForm({ ...form, tipo: 'receita', categoria: '' })}
-                    className={`py-4 rounded-xl font-semibold transition-all min-h-[52px] ${
-                      form.tipo === 'receita' ? 'bg-green-600 scale-105 shadow-lg' : 'bg-gray-700 active:scale-95'
-                    }`}
-                  >
-                    💰 Receita
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Valor (R$)</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={form.valor}
-                  onChange={(e) => setForm({ ...form, valor: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
-                  placeholder="0,00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Categoria</label>
-                <select
-                  value={form.categoria}
-                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
-                >
-                  <option value="">Selecione...</option>
-                  {form.tipo === 'receita' ? (
-                    categorias.receitas.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                  ) : (
-                    <>
-                      <optgroup label="⚡ Fixos">
-                        {categorias.fixos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                      <optgroup label="🔄 Variáveis">
-                        {categorias.variaveis.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </optgroup>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Data</label>
-                <input
-                  type="date"
-                  value={form.data}
-                  onChange={(e) => setForm({ ...form, data: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Descrição (opcional)</label>
-                <input
-                  type="text"
-                  value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
-                  placeholder="Ex: Fatura Bradesco"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2 font-medium">Parcelas</label>
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="60"
-                    value={form.parcelas}
-                    onChange={(e) => setForm({ ...form, parcelas: e.target.value })}
-                    className="w-24 bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-center font-semibold focus:border-blue-500 focus:outline-none min-h-[52px]"
-                  />
-                  <span className="text-sm text-gray-400 flex-1">
-                    {form.parcelas > 1 && form.valor 
-                      ? `${form.parcelas}x de R$ ${(parseFloat(form.valor || 0) / parseInt(form.parcelas || 1)).toFixed(2)}`
-                      : 'À vista (1x)'}
-                  </span>
-                </div>
-                {form.parcelas > 1 && (
-                  <p className="text-xs text-blue-400 mt-2 p-3 bg-blue-600/10 rounded-lg">
-                    💡 Serão criadas {form.parcelas} transações mensais automaticamente
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <label className="flex items-center gap-3 bg-gray-700/50 p-4 rounded-xl cursor-pointer min-h-[52px]">
-                  <input
-                    type="checkbox"
-                    checked={form.fixo}
-                    onChange={(e) => setForm({ ...form, fixo: e.target.checked })}
-                    className="w-6 h-6 rounded"
-                  />
-                  <span className="font-medium">Gasto Fixo</span>
-                </label>
-                <label className="flex items-center gap-3 bg-gray-700/50 p-4 rounded-xl cursor-pointer min-h-[52px]">
-                  <input
-                    type="checkbox"
-                    checked={form.pago}
-                    onChange={(e) => setForm({ ...form, pago: e.target.checked })}
-                    className="w-6 h-6 rounded"
-                  />
-                  <span className="font-medium">Já Pago</span>
-                </label>
-              </div>
-
-              <button
-                onClick={adicionarTransacao}
-                className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
-              >
-                {transacaoEdit ? '✅ Atualizar' : '✅ Adicionar'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Botão Flutuante */}
@@ -1316,14 +1161,14 @@ const FinanceApp = ({ usuario, onLogout }) => {
         <PlusCircle size={26} strokeWidth={2.5} />
       </button>
 
-      {/* Modal Lançamento Rápido */}
+      {/* ✅ MODAL RÁPIDO COMPLETO */}
       {modalRapido && (
         <div 
           className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-40"
           onClick={() => setModalRapido(false)}
         >
           <div 
-            className="bg-gray-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl transform transition-transform"
+            className="bg-gray-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
             style={{
               paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
             }}
@@ -1340,6 +1185,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
             </div>
 
             <div className="space-y-5">
+              {/* Tipo */}
               <div>
                 <label className="block text-sm mb-2 font-medium">Tipo</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -1362,6 +1208,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </div>
               </div>
 
+              {/* Valor */}
               <div>
                 <label className="block text-sm mb-2 font-medium">Valor (R$)</label>
                 <input
@@ -1376,6 +1223,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 />
               </div>
 
+              {/* Categoria */}
               <div>
                 <label className="block text-sm mb-2 font-medium">Categoria</label>
                 <select
@@ -1399,30 +1247,96 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </select>
               </div>
 
-              <div className="pt-2 space-y-3">
-                <button
-                  onClick={salvarRapido}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
-                >
-                  ✅ Salvar Agora
-                </button>
-
-                <button
-                  onClick={() => {
-                    setForm({
-                      ...form,
-                      valor: formRapido.valor,
-                      categoria: formRapido.categoria,
-                      tipo: formRapido.tipo
-                    });
-                    setModalRapido(false);
-                    setTela('adicionar');
-                  }}
-                  className="w-full text-sm text-blue-400 hover:text-blue-300 py-3 min-h-[44px]"
-                >
-                  Ou adicionar mais detalhes →
-                </button>
+              {/* ✅ NOVO: Vencimento */}
+              <div>
+                <label className="block text-sm mb-2 font-medium">Vencimento</label>
+                <input
+                  type="date"
+                  value={formRapido.data}
+                  onChange={(e) => setFormRapido({ ...formRapido, data: e.target.value })}
+                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+                />
               </div>
+
+              {/* ✅ NOVO: Recorrência */}
+              <div>
+                <label className="block text-sm mb-2 font-medium flex items-center gap-2">
+                  <Repeat size={16} />
+                  Recorrência
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'nenhuma', dataFinal: '' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'nenhuma' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Única
+                  </button>
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'mensal' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'mensal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'semanal' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'semanal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Semanal
+                  </button>
+                </div>
+              </div>
+
+              {/* ✅ NOVO: Data Final (se recorrente) */}
+              {formRapido.recorrencia !== 'nenhuma' && (
+                <div>
+                  <label className="block text-sm mb-2 font-medium">Data Final da Recorrência</label>
+                  <input
+                    type="date"
+                    value={formRapido.dataFinal}
+                    onChange={(e) => setFormRapido({ ...formRapido, dataFinal: e.target.value })}
+                    className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+                  />
+                  <p className="text-xs text-blue-400 mt-2">
+                    ℹ️ Serão criadas transações {formRapido.recorrencia === 'mensal' ? 'mensais' : 'semanais'} até esta data
+                  </p>
+                </div>
+              )}
+
+              {/* ✅ NOVO: Parcelas (se não for recorrente) */}
+              {formRapido.recorrencia === 'nenhuma' && (
+                <div>
+                  <label className="block text-sm mb-2 font-medium">Parcelas</label>
+                  <div className="flex gap-3 items-center">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="60"
+                      value={formRapido.parcelas}
+                      onChange={(e) => setFormRapido({ ...formRapido, parcelas: e.target.value })}
+                      className="w-24 bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-center font-semibold focus:border-blue-500 focus:outline-none min-h-[52px]"
+                    />
+                    <span className="text-sm text-gray-400 flex-1">
+                      {formRapido.parcelas > 1 && formRapido.valor 
+                        ? `${formRapido.parcelas}x de R$ ${(parseFloat(formRapido.valor || 0) / parseInt(formRapido.parcelas || 1)).toFixed(2)}`
+                        : 'À vista (1x)'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={salvarRapido}
+                className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
+              >
+                ✅ Salvar Agora
+              </button>
             </div>
           </div>
         </div>
@@ -1540,6 +1454,75 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
               >
                 Criar Caixinha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NOVO: Modal Editar Caixinha */}
+      {modalEditCaixinha && (
+        <div 
+          className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-40"
+          onClick={() => setModalEditCaixinha(false)}
+        >
+          <div 
+            className="bg-gray-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl"
+            style={{
+              paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">✏️ Editar Caixinha</h2>
+              <button 
+                onClick={() => setModalEditCaixinha(false)} 
+                className="text-gray-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm mb-2 font-medium">Nome</label>
+                <input
+                  type="text"
+                  value={formCaixinha.nome}
+                  onChange={(e) => setFormCaixinha({ ...formCaixinha, nome: e.target.value })}
+                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-2 font-medium">Valor Total (R$)</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={formCaixinha.valor_total}
+                  onChange={(e) => setFormCaixinha({ ...formCaixinha, valor_total: e.target.value })}
+                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-2 font-medium">Quantidade de Parcelas</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={formCaixinha.parcelas_total}
+                  onChange={(e) => setFormCaixinha({ ...formCaixinha, parcelas_total: e.target.value })}
+                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 text-lg focus:border-blue-500 focus:outline-none min-h-[52px]"
+                />
+              </div>
+
+              <button
+                onClick={editarCaixinha}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95 min-h-[52px]"
+              >
+                ✅ Salvar Alterações
               </button>
             </div>
           </div>
