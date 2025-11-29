@@ -39,6 +39,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
   const [modalCaixinha, setModalCaixinha] = useState(false);
   const [modalEditCaixinha, setModalEditCaixinha] = useState(false);
   const [caixinhaEdit, setCaixinhaEdit] = useState(null);
+  const [mostrarConcluidas, setMostrarConcluidas] = useState(false); // ✅ NOVO
   const [transacoes, setTransacoes] = useState([]);
   const [caixinhas, setCaixinhas] = useState([]);
   const [categorias] = useState(CATEGORIAS_PADRAO);
@@ -506,11 +507,19 @@ const FinanceApp = ({ usuario, onLogout }) => {
   };
 
   const totaisAtual = calcularTotais(mesAtual);
+  // ✅ MELHORADO: Ordenação - Pendentes primeiro + Mais recentes no topo
   const transacoesFiltradas = transacoes
     .filter(t => t.data.startsWith(mesAtual))
     .filter(t => filtros.categoria === 'todas' || t.categoria === filtros.categoria)
     .filter(t => filtros.tipo === 'todos' || t.tipo === filtros.tipo)
-    .sort((a, b) => new Date(b.data) - new Date(a.data));
+    .sort((a, b) => {
+      // 1º Critério: Pendentes primeiro
+      if (a.pago !== b.pago) {
+        return a.pago ? 1 : -1; // Não pagas (false) vêm primeiro
+      }
+      // 2º Critério: Mais recentes primeiro
+      return new Date(b.data) - new Date(a.data);
+    });
 
   const IconeCategoria = ({ categoria, tamanho = 18 }) => {
     const Icon = CATEGORIA_CONFIG[categoria]?.icon || DollarSign;
@@ -935,23 +944,56 @@ const FinanceApp = ({ usuario, onLogout }) => {
         {/* Tela Caixinhas */}
         {tela === 'caixinhas' && (
           <>
-            <button
-              onClick={() => setModalCaixinha(true)}
-              className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-bold mb-4 flex items-center justify-center gap-2"
-            >
-              <PlusCircle size={20} />
-              Nova Caixinha
-            </button>
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={() => setModalCaixinha(true)}
+                className="flex-1 bg-green-600 hover:bg-green-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+              >
+                <PlusCircle size={20} />
+                Nova Caixinha
+              </button>
+              
+              {/* ✅ NOVO: Toggle Concluídas */}
+              <button
+                onClick={() => setMostrarConcluidas(!mostrarConcluidas)}
+                className={`px-4 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${
+                  mostrarConcluidas 
+                    ? 'bg-blue-600 hover:bg-blue-700' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                {mostrarConcluidas ? '✅ Concluídas' : '📋 Ativas'}
+              </button>
+            </div>
 
-            {caixinhas.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center">
-                <Wallet size={48} className="mx-auto mb-4 text-gray-600" />
-                <p className="text-gray-400 mb-2">Nenhuma caixinha criada ainda</p>
-                <p className="text-sm text-gray-500">Crie uma caixinha para organizar seus objetivos financeiros</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {caixinhas.map(c => {
+            {(() => {
+              // ✅ NOVO: Filtrar caixinhas por status
+              const caixinhasFiltradas = caixinhas.filter(c => {
+                const concluida = c.parcelas_pagas >= c.parcelas_total;
+                return mostrarConcluidas ? concluida : !concluida;
+              });
+
+              if (caixinhasFiltradas.length === 0) {
+                return (
+                  <div className="bg-gray-800 rounded-lg p-8 text-center">
+                    <Wallet size={48} className="mx-auto mb-4 text-gray-600" />
+                    <p className="text-gray-400 mb-2">
+                      {mostrarConcluidas 
+                        ? 'Nenhuma caixinha concluída ainda'
+                        : 'Nenhuma caixinha ativa'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {mostrarConcluidas
+                        ? 'Complete suas caixinhas para vê-las aqui'
+                        : 'Crie uma caixinha para organizar seus objetivos financeiros'}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {caixinhasFiltradas.map(c => {
                   const progresso = (c.valor_pago / c.valor_total * 100).toFixed(1);
                   const valorParcela = (c.valor_total / c.parcelas_total).toFixed(2);
                   const faltam = c.parcelas_total - c.parcelas_pagas;
@@ -1074,8 +1116,9 @@ const FinanceApp = ({ usuario, onLogout }) => {
                     </div>
                   );
                 })}
-              </div>
-            )}
+                </div>
+              );
+            })()}
           </>
         )}
 
@@ -1341,55 +1384,42 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </div>
               )}
 
-              {/* ✅ NOVO: Receitas usam data atual automaticamente */}
-              {formRapido.tipo === 'receita' && (
-                <p className="text-xs text-gray-400 bg-blue-600/10 p-3 rounded-lg">
-                  💡 Receitas são registradas na data atual automaticamente
-                </p>
-              )}
-
-              {/* ✅ CORREÇÃO: Só mostrar recorrência para GASTOS */}
-              {formRapido.tipo === 'gasto' && (
-                <>
-                  {/* Recorrência */}
-                  <div>
-                    <label className="block text-sm mb-2 font-medium flex items-center gap-2">
-                      <Repeat size={16} />
-                      Recorrência
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'nenhuma', dataFinal: '' })}
-                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                          formRapido.recorrencia === 'nenhuma' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                        }`}
-                      >
-                        Única
-                      </button>
-                      <button
-                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'mensal' })}
-                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                          formRapido.recorrencia === 'mensal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                        }`}
-                      >
-                        Mensal
-                      </button>
-                      <button
-                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'semanal' })}
-                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                          formRapido.recorrencia === 'semanal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                        }`}
-                      >
-                        Semanal
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
+              {/* ✅ MELHORADO: Recorrência para GASTOS E RECEITAS */}
+              <div>
+                <label className="block text-sm mb-2 font-medium flex items-center gap-2">
+                  <Repeat size={16} />
+                  Recorrência
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'nenhuma', dataFinal: '' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'nenhuma' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Única
+                  </button>
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'mensal' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'mensal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'semanal' })}
+                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                      formRapido.recorrencia === 'semanal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                    }`}
+                  >
+                    Semanal
+                  </button>
+                </div>
+              </div>
 
               {/* ✅ NOVO: Data Final (se recorrente) */}
-              {formRapido.tipo === 'gasto' && formRapido.recorrencia !== 'nenhuma' && (
+              {formRapido.recorrencia !== 'nenhuma' && (
                 <div>
                   <label className="block text-sm mb-2 font-medium">Data Final da Recorrência</label>
                   <input
@@ -1404,6 +1434,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </div>
               )}
 
+              {/* ✅ NOVO: Parcelas (se não for recorrente e for GASTO) */}
               {/* ✅ NOVO: Parcelas (se não for recorrente e for GASTO) */}
               {formRapido.tipo === 'gasto' && formRapido.recorrencia === 'nenhuma' && (
                 <div>
