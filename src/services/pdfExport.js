@@ -24,25 +24,25 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(26);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('💰 Finance App', margin, 20);
+  doc.text('Finance App', margin, 20);
   
   doc.setFontSize(16);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(209, 213, 219); // gray-300
-  doc.text('Relatório Financeiro', margin, 32);
+  doc.text('Relatorio Financeiro', margin, 32);
   
   // Info do usuário e período
   doc.setFontSize(9);
   doc.setTextColor(156, 163, 175); // gray-400
-  doc.text(`👤 ${usuario.nome}`, margin, 43);
+  doc.text(`Usuario: ${usuario.nome}`, margin, 43);
   
   const [year, month] = mesAtual.split('-');
   const mesFormatado = new Date(year, month - 1).toLocaleDateString('pt-BR', { 
     month: 'long', 
     year: 'numeric' 
   });
-  doc.text(`📅 ${mesFormatado.charAt(0).toUpperCase() + mesFormatado.slice(1)}`, margin + 60, 43);
-  doc.text(`🕒 ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, margin + 120, 43);
+  doc.text(`Periodo: ${mesFormatado.charAt(0).toUpperCase() + mesFormatado.slice(1)}`, margin + 60, 43);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, margin + 120, 43);
 
   yPos = 70;
 
@@ -59,7 +59,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   
   doc.setFontSize(9);
   doc.setTextColor(21, 128, 61); // green-700
-  doc.text('💚 RECEITAS', margin + 3, yPos + 7);
+  doc.text('RECEITAS', margin + 3, yPos + 7);
   doc.setFontSize(16);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(22, 163, 74); // green-600
@@ -67,7 +67,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(21, 128, 61);
-  doc.text(`${transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'receita').length} lançamentos`, margin + 3, yPos + 25);
+  doc.text(`${transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'receita').length} lancamentos`, margin + 3, yPos + 25);
 
   // Card Gastos (Vermelho)
   const xGastos = margin + cardWidth + 5;
@@ -78,7 +78,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   
   doc.setFontSize(9);
   doc.setTextColor(185, 28, 28); // red-700
-  doc.text('💸 GASTOS', xGastos + 3, yPos + 7);
+  doc.text('GASTOS', xGastos + 3, yPos + 7);
   doc.setFontSize(16);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(220, 38, 38); // red-600
@@ -86,7 +86,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(185, 28, 28);
-  doc.text(`${transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'gasto').length} lançamentos`, xGastos + 3, yPos + 25);
+  doc.text(`${transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'gasto').length} lancamentos`, xGastos + 3, yPos + 25);
 
   // Card Saldo (Azul ou Vermelho)
   const xSaldo = xGastos + cardWidth + 5;
@@ -111,7 +111,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   } else {
     doc.setTextColor(185, 28, 28); // red-700
   }
-  doc.text(saldoPositivo ? '💰 SALDO' : '⚠️ DÉFICIT', xSaldo + 3, yPos + 7);
+  doc.text(saldoPositivo ? 'SALDO' : 'DEFICIT', xSaldo + 3, yPos + 7);
   doc.setFontSize(16);
   doc.setFont(undefined, 'bold');
   if (saldoPositivo) {
@@ -136,7 +136,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.roundedRect(margin, yPos, miniCardWidth, miniCardHeight, 2, 2, 'F');
   doc.setFontSize(8);
   doc.setTextColor(75, 85, 99); // gray-600
-  doc.text('🔹 Gastos Fixos', margin + 2, yPos + 6);
+  doc.text('Gastos Fixos', margin + 2, yPos + 6);
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(31, 41, 55); // gray-800
@@ -147,7 +147,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(75, 85, 99);
-  doc.text('🔸 Gastos Variáveis', margin + miniCardWidth + 7, yPos + 6);
+  doc.text('Gastos Variaveis', margin + miniCardWidth + 7, yPos + 6);
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(31, 41, 55);
@@ -158,7 +158,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(75, 85, 99);
-  doc.text('⏰ A Pagar', margin + (miniCardWidth + 5) * 2 + 2, yPos + 6);
+  doc.text('A Pagar', margin + (miniCardWidth + 5) * 2 + 2, yPos + 6);
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(234, 88, 12); // orange-600
@@ -170,7 +170,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(13);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(31, 41, 55);
-  doc.text('📊 Top 5 Categorias', margin, yPos);
+  doc.text('Top 5 Categorias', margin, yPos);
   
   yPos += 8;
   const top5 = porCategoria.slice(0, 5);
@@ -216,7 +216,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   doc.setFontSize(13);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(31, 41, 55);
-  doc.text('📋 Transações Detalhadas', margin, yPos);
+  doc.text('Transacoes Detalhadas', margin, yPos);
   
   yPos += 8;
   
@@ -230,17 +230,17 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   if (transacoesMes.length === 0) {
     doc.setFontSize(10);
     doc.setTextColor(156, 163, 175);
-    doc.text('Nenhuma transação encontrada neste período', margin, yPos);
+    doc.text('Nenhuma transacao encontrada neste periodo', margin, yPos);
   } else {
     autoTable(doc, {
       startY: yPos,
       head: [['Data', 'Tipo', 'Categoria', 'Valor', 'Status']],
       body: transacoesMes.map(t => [
         formatDate(t.data),
-        t.tipo === 'receita' ? '💚 Receita' : '💸 Gasto',
+        t.tipo === 'receita' ? 'Receita' : 'Gasto',
         t.categoria,
         formatCurrency(t.valor),
-        t.pago ? '✅ Pago' : '⏰ Pendente'
+        t.pago ? 'Pago' : 'Pendente'
       ]),
       theme: 'plain',
       headStyles: {
@@ -267,9 +267,18 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
       },
       didParseCell: function(data) {
         // Destacar pendentes
-        if (data.section === 'body' && data.column.index === 4 && data.cell.raw === '⏰ Pendente') {
+        if (data.section === 'body' && data.column.index === 4 && data.cell.raw === 'Pendente') {
           data.cell.styles.textColor = [234, 88, 12]; // orange-600
           data.cell.styles.fontStyle = 'bold';
+        }
+        // Destacar receitas em verde
+        if (data.section === 'body' && data.column.index === 1 && data.cell.raw === 'Receita') {
+          data.cell.styles.textColor = [22, 163, 74]; // green-600
+          data.cell.styles.fontStyle = 'bold';
+        }
+        // Destacar gastos em vermelho
+        if (data.section === 'body' && data.column.index === 1 && data.cell.raw === 'Gasto') {
+          data.cell.styles.textColor = [220, 38, 38]; // red-600
         }
       }
     });
@@ -290,7 +299,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
     doc.setFontSize(7);
     doc.setTextColor(156, 163, 175);
     doc.setFont(undefined, 'normal');
-    doc.text('💰 Finance App - Seu controle financeiro pessoal', margin, footerY + 6);
+    doc.text('Finance App - Seu controle financeiro pessoal', margin, footerY + 6);
     doc.text(
       `Página ${i} de ${pageCount}`,
       pageWidth - margin,
@@ -315,16 +324,16 @@ export const exportarPDFCompleto = (transacoes, caixinhas, usuario, periodo) => 
   // Título
   doc.setFontSize(20);
   doc.setTextColor(59, 130, 246);
-  doc.text('💰 Relatório Completo', margin, yPos);
+  doc.text('Relatorio Completo', margin, yPos);
   
   yPos += 10;
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text(`Usuário: ${usuario.nome}`, margin, yPos);
+  doc.text(`Usuario: ${usuario.nome}`, margin, yPos);
   yPos += 5;
-  doc.text(`Período: ${periodo.inicio} a ${periodo.fim}`, margin, yPos);
+  doc.text(`Periodo: ${periodo.inicio} a ${periodo.fim}`, margin, yPos);
   yPos += 5;
-  doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, margin, yPos);
+  doc.text(`Data de geracao: ${new Date().toLocaleDateString('pt-BR')}`, margin, yPos);
 
   // Linha separadora
   yPos += 8;
@@ -335,7 +344,7 @@ export const exportarPDFCompleto = (transacoes, caixinhas, usuario, periodo) => 
   yPos += 10;
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text('Todas as Transações', margin, yPos);
+  doc.text('Todas as Transacoes', margin, yPos);
   
   yPos += 8;
   
@@ -343,7 +352,7 @@ export const exportarPDFCompleto = (transacoes, caixinhas, usuario, periodo) => 
 
   autoTable(doc, {
     startY: yPos,
-    head: [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor']],
+    head: [['Data', 'Tipo', 'Categoria', 'Descricao', 'Valor']],
     body: todasTransacoes.map(t => [
       formatDate(t.data),
       t.tipo === 'receita' ? 'Receita' : 'Gasto',
