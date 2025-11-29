@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, TrendingUp, TrendingDown, DollarSign, Filter, Download, Edit2, Trash2, X, Home, CreditCard, Car, ShoppingCart, Pill, Zap, Wifi, Smartphone, Music, CheckCircle, AlertCircle, BarChart3, LogOut, Wallet, Calendar, Repeat } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import DateSelector from './components/DateSelector';
@@ -292,7 +292,8 @@ const FinanceApp = ({ usuario, onLogout }) => {
     };
   };
 
-  const calcularPorCategoria = () => {
+  // ✅ OTIMIZADO: Cachear cálculo para evitar recalcular a cada render
+  const dadosPorCategoria = useMemo(() => {
     const transacoesMes = transacoes.filter(t => t.data.startsWith(mesAtual) && t.tipo === 'gasto');
     const total = transacoesMes.reduce((sum, t) => sum + t.valor, 0);
     
@@ -315,7 +316,10 @@ const FinanceApp = ({ usuario, onLogout }) => {
         cor: CATEGORIA_CONFIG[cat]?.cor || '#6B7280'
       }))
       .sort((a, b) => b.valor - a.valor);
-  };
+  }, [transacoes, mesAtual]); // Só recalcula quando transações ou mês mudam
+
+  // Manter função para compatibilidade (apenas retorna o cache)
+  const calcularPorCategoria = () => dadosPorCategoria;
 
   // ✅ MELHORADO: Só exibe meses com dados (6 meses antes e depois)
   const getEvolucaoMeses = () => {
@@ -357,35 +361,71 @@ const FinanceApp = ({ usuario, onLogout }) => {
     });
   };
 
+  // ✅ CORRIGIDO: Previsão do próximo mês
   const calcularPrevisao = () => {
-    const gastosMes = [];
+    const hoje = new Date();
+    const proximoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    const proximoMesStr = proximoMes.toISOString().slice(0, 7);
+
+    // Buscar transações do próximo mês
+    const transacoesProximoMes = transacoes.filter(t => t.data.startsWith(proximoMesStr));
+    
+    // Gastos fixos do próximo mês (ou usar média dos últimos 3 meses de fixos)
+    const gastosFixosProximoMes = transacoesProximoMes
+      .filter(t => t.tipo === 'gasto' && t.fixo)
+      .reduce((sum, t) => sum + t.valor, 0);
+    
+    // Se não houver gastos fixos agendados, usar média dos últimos 3 meses
+    let gastosFixos = gastosFixosProximoMes;
+    if (gastosFixos === 0) {
+      const fixosMeses = [];
+      for (let i = 1; i <= 3; i++) {
+        const data = new Date();
+        data.setMonth(data.getMonth() - i);
+        const mesStr = data.toISOString().slice(0, 7);
+        const totais = calcularTotais(mesStr);
+        fixosMeses.push(totais.fixos);
+      }
+      gastosFixos = fixosMeses.reduce((a, b) => a + b, 0) / fixosMeses.length;
+    }
+
+    // Gastos variáveis: média dos últimos 3 meses
+    const variaveisMeses = [];
     for (let i = 1; i <= 3; i++) {
       const data = new Date();
       data.setMonth(data.getMonth() - i);
       const mesStr = data.toISOString().slice(0, 7);
       const totais = calcularTotais(mesStr);
-      gastosMes.push(totais.variaveis);
+      variaveisMeses.push(totais.variaveis);
     }
+    const mediaVariaveis = variaveisMeses.reduce((a, b) => a + b, 0) / variaveisMeses.length;
+
+    // Receitas do próximo mês (ou média dos últimos 3 meses)
+    const receitasProximoMes = transacoesProximoMes
+      .filter(t => t.tipo === 'receita')
+      .reduce((sum, t) => sum + t.valor, 0);
     
-    const mediaVariaveis = gastosMes.reduce((a, b) => a + b, 0) / gastosMes.length;
-    const mesAtualTotais = calcularTotais(mesAtual);
-    const previsaoTotal = mesAtualTotais.fixos + mediaVariaveis;
-    
-    const receitasMedia = (() => {
-      const receitas = [];
+    let receitas = receitasProximoMes;
+    if (receitas === 0) {
+      const receitasMeses = [];
       for (let i = 1; i <= 3; i++) {
         const data = new Date();
         data.setMonth(data.getMonth() - i);
         const mesStr = data.toISOString().slice(0, 7);
-        receitas.push(calcularTotais(mesStr).receitas);
+        receitasMeses.push(calcularTotais(mesStr).receitas);
       }
-      return receitas.reduce((a, b) => a + b, 0) / receitas.length;
-    })();
+      receitas = receitasMeses.reduce((a, b) => a + b, 0) / receitasMeses.length;
+    }
+
+    const previsaoGastos = gastosFixos + mediaVariaveis;
+    const previsaoSaldo = receitas - previsaoGastos;
 
     return {
-      previsaoGastos: previsaoTotal,
-      previsaoSaldo: receitasMedia - previsaoTotal,
-      alerta: previsaoTotal > receitasMedia
+      previsaoGastos,
+      previsaoReceitas: receitas,
+      previsaoSaldo,
+      alerta: previsaoGastos > receitas,
+      temDadosAgendados: transacoesProximoMes.length > 0
     };
   };
 
@@ -740,27 +780,58 @@ const FinanceApp = ({ usuario, onLogout }) => {
               </div>
             </div>
 
-            {/* Cards Informativos */}
+            {/* ✅ NOVO: Cards Informativos Úteis */}
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-blue-600/20 border border-blue-600/30 rounded-lg p-3">
-                <div className="text-xs text-blue-400 mb-1">Gastos Fixos</div>
-                <div className="text-base font-bold">R$ {totaisAtual.fixos.toFixed(2)}</div>
-                <div className="text-xs text-gray-400 mt-1">{totaisAtual.fixosPagos}/{totaisAtual.fixosTotal} pagos</div>
+              {/* Contas Vencidas */}
+              <div className="bg-red-600/20 border border-red-600/30 rounded-lg p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertCircle size={14} className="text-red-400" />
+                  <div className="text-xs text-red-400 font-medium">Vencidas</div>
+                </div>
+                <div className="text-lg font-bold text-red-300">{calcularVencimentos().vencidas.length}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  R$ {calcularVencimentos().vencidas.reduce((sum, t) => sum + t.valor, 0).toFixed(2)}
+                </div>
               </div>
 
-              <div className="bg-purple-600/20 border border-purple-600/30 rounded-lg p-3">
-                <div className="text-xs text-purple-400 mb-1">Gastos Variáveis</div>
-                <div className="text-base font-bold">R$ {totaisAtual.variaveis.toFixed(2)}</div>
-              </div>
-
+              {/* A Vencer Esta Semana */}
               <div className="bg-orange-600/20 border border-orange-600/30 rounded-lg p-3">
-                <div className="text-xs text-orange-400 mb-1">A Pagar</div>
-                <div className="text-base font-bold">R$ {totaisAtual.naoPagos.toFixed(2)}</div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertCircle size={14} className="text-orange-400" />
+                  <div className="text-xs text-orange-400 font-medium">Vence Esta Semana</div>
+                </div>
+                <div className="text-lg font-bold text-orange-300">{calcularVencimentos().vencem3Dias.length}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  R$ {calcularVencimentos().vencem3Dias.reduce((sum, t) => sum + t.valor, 0).toFixed(2)}
+                </div>
               </div>
 
-              <div className="bg-teal-600/20 border border-teal-600/30 rounded-lg p-3">
-                <div className="text-xs text-teal-400 mb-1">Fixos Pagos</div>
-                <div className="text-base font-bold">{totaisAtual.fixosPagos} de {totaisAtual.fixosTotal}</div>
+              {/* Total Pago */}
+              <div className="bg-green-600/20 border border-green-600/30 rounded-lg p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CheckCircle size={14} className="text-green-400" />
+                  <div className="text-xs text-green-400 font-medium">Pago</div>
+                </div>
+                <div className="text-lg font-bold text-green-300">
+                  {transacoesFiltradas.filter(t => t.pago).length}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  R$ {transacoesFiltradas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0).toFixed(2)}
+                </div>
+              </div>
+
+              {/* Total Pendente */}
+              <div className="bg-purple-600/20 border border-purple-600/30 rounded-lg p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertCircle size={14} className="text-purple-400" />
+                  <div className="text-xs text-purple-400 font-medium">Pendente</div>
+                </div>
+                <div className="text-lg font-bold text-purple-300">
+                  {transacoesFiltradas.filter(t => !t.pago && t.tipo === 'gasto').length}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  R$ {totaisAtual.naoPagos.toFixed(2)}
+                </div>
               </div>
             </div>
 
@@ -968,16 +1039,19 @@ const FinanceApp = ({ usuario, onLogout }) => {
                         <button
                           onClick={async () => {
                             try {
+                              const valorParcelaNum = parseFloat(valorParcela);
+                              
                               await fetch(`${API_URL}/api/caixinhas/${c.id}/pagar`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ valor: valorParcela })
+                                body: JSON.stringify({ valor: valorParcelaNum })
                               });
                               
+                              // ✅ CORREÇÃO: Garantir que valores são numbers
                               setCaixinhas(prev => prev.map(cx => cx.id === c.id ? {
                                 ...cx,
-                                valor_pago: cx.valor_pago + parseFloat(valorParcela),
-                                parcelas_pagas: cx.parcelas_pagas + 1
+                                valor_pago: parseFloat(cx.valor_pago || 0) + valorParcelaNum,
+                                parcelas_pagas: parseInt(cx.parcelas_pagas || 0) + 1
                               } : cx));
                             } catch (err) {
                               console.error("Erro ao pagar:", err);
@@ -1013,11 +1087,18 @@ const FinanceApp = ({ usuario, onLogout }) => {
               <div className="flex items-center gap-2 mb-2">
                 {calcularPrevisao().alerta ? <AlertCircle size={20} className="text-red-400" /> : <CheckCircle size={20} className="text-green-400" />}
                 <h3 className="font-bold">Previsão Próximo Mês</h3>
+                {calcularPrevisao().temDadosAgendados && (
+                  <span className="text-xs bg-blue-600/30 px-2 py-1 rounded">Com dados agendados</span>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-400">Receitas Previstas</div>
+                  <div className="font-bold text-lg text-green-400">R$ {calcularPrevisao().previsaoReceitas.toFixed(2)}</div>
+                </div>
                 <div>
                   <div className="text-gray-400">Gastos Previstos</div>
-                  <div className="font-bold text-lg">R$ {calcularPrevisao().previsaoGastos.toFixed(2)}</div>
+                  <div className="font-bold text-lg text-red-400">R$ {calcularPrevisao().previsaoGastos.toFixed(2)}</div>
                 </div>
                 <div>
                   <div className="text-gray-400">Saldo Previsto</div>
@@ -1027,7 +1108,7 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </div>
               </div>
               {calcularPrevisao().alerta && (
-                <div className="text-xs text-red-300 mt-2">⚠️ Gastos previstos excedem receita média</div>
+                <div className="text-xs text-red-300 mt-2">⚠️ Gastos previstos excedem receita prevista</div>
               )}
             </div>
 
@@ -1247,53 +1328,68 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </select>
               </div>
 
-              {/* ✅ NOVO: Vencimento */}
-              <div>
-                <label className="block text-sm mb-2 font-medium">Vencimento</label>
-                <input
-                  type="date"
-                  value={formRapido.data}
-                  onChange={(e) => setFormRapido({ ...formRapido, data: e.target.value })}
-                  className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
-                />
-              </div>
-
-              {/* ✅ NOVO: Recorrência */}
-              <div>
-                <label className="block text-sm mb-2 font-medium flex items-center gap-2">
-                  <Repeat size={16} />
-                  Recorrência
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'nenhuma', dataFinal: '' })}
-                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                      formRapido.recorrencia === 'nenhuma' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                    }`}
-                  >
-                    Única
-                  </button>
-                  <button
-                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'mensal' })}
-                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                      formRapido.recorrencia === 'mensal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                    }`}
-                  >
-                    Mensal
-                  </button>
-                  <button
-                    onClick={() => setFormRapido({ ...formRapido, recorrencia: 'semanal' })}
-                    className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
-                      formRapido.recorrencia === 'semanal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
-                    }`}
-                  >
-                    Semanal
-                  </button>
+              {/* ✅ CORREÇÃO: Só mostrar vencimento para GASTOS */}
+              {formRapido.tipo === 'gasto' && (
+                <div>
+                  <label className="block text-sm mb-2 font-medium">Vencimento</label>
+                  <input
+                    type="date"
+                    value={formRapido.data}
+                    onChange={(e) => setFormRapido({ ...formRapido, data: e.target.value })}
+                    className="w-full bg-gray-700 border-2 border-gray-600 rounded-xl px-4 py-4 focus:border-blue-500 focus:outline-none min-h-[52px]"
+                  />
                 </div>
-              </div>
+              )}
+
+              {/* ✅ NOVO: Receitas usam data atual automaticamente */}
+              {formRapido.tipo === 'receita' && (
+                <p className="text-xs text-gray-400 bg-blue-600/10 p-3 rounded-lg">
+                  💡 Receitas são registradas na data atual automaticamente
+                </p>
+              )}
+
+              {/* ✅ CORREÇÃO: Só mostrar recorrência para GASTOS */}
+              {formRapido.tipo === 'gasto' && (
+                <>
+                  {/* Recorrência */}
+                  <div>
+                    <label className="block text-sm mb-2 font-medium flex items-center gap-2">
+                      <Repeat size={16} />
+                      Recorrência
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'nenhuma', dataFinal: '' })}
+                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                          formRapido.recorrencia === 'nenhuma' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                        }`}
+                      >
+                        Única
+                      </button>
+                      <button
+                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'mensal' })}
+                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                          formRapido.recorrencia === 'mensal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                        }`}
+                      >
+                        Mensal
+                      </button>
+                      <button
+                        onClick={() => setFormRapido({ ...formRapido, recorrencia: 'semanal' })}
+                        className={`py-3 rounded-lg font-medium text-sm transition-all min-h-[44px] ${
+                          formRapido.recorrencia === 'semanal' ? 'bg-blue-600 scale-105' : 'bg-gray-700 active:scale-95'
+                        }`}
+                      >
+                        Semanal
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
 
               {/* ✅ NOVO: Data Final (se recorrente) */}
-              {formRapido.recorrencia !== 'nenhuma' && (
+              {formRapido.tipo === 'gasto' && formRapido.recorrencia !== 'nenhuma' && (
                 <div>
                   <label className="block text-sm mb-2 font-medium">Data Final da Recorrência</label>
                   <input
@@ -1308,8 +1404,8 @@ const FinanceApp = ({ usuario, onLogout }) => {
                 </div>
               )}
 
-              {/* ✅ NOVO: Parcelas (se não for recorrente) */}
-              {formRapido.recorrencia === 'nenhuma' && (
+              {/* ✅ NOVO: Parcelas (se não for recorrente e for GASTO) */}
+              {formRapido.tipo === 'gasto' && formRapido.recorrencia === 'nenhuma' && (
                 <div>
                   <label className="block text-sm mb-2 font-medium">Parcelas</label>
                   <div className="flex gap-3 items-center">
