@@ -3,44 +3,61 @@ import Login from './Login';
 import FinanceApp from './FinanceApp';
 
 const App = () => {
+  const [token, setToken] = useState(null);
   const [usuario, setUsuario] = useState(null);
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
+    const tokenSalvo = localStorage.getItem('token');
     const usuarioSalvo = localStorage.getItem('usuario');
 
-    try {
-      // evita JSON.parse("undefined") ou JSON.parse("null")
-      if (
-        usuarioSalvo &&
-        usuarioSalvo !== "undefined" &&
-        usuarioSalvo !== "null"
-      ) {
-        setUsuario(JSON.parse(usuarioSalvo));
-      } else {
-        // caso esteja corrompido, remove
+    if (tokenSalvo && tokenSalvo !== 'undefined') {
+      setToken(tokenSalvo);
+
+      try {
+        if (usuarioSalvo && usuarioSalvo !== 'undefined') {
+          setUsuario(JSON.parse(usuarioSalvo));
+        }
+      } catch {
         localStorage.removeItem('usuario');
       }
-    } catch (e) {
-      console.error("Erro ao carregar usuário:", e);
+    } else {
+      localStorage.removeItem('token');
       localStorage.removeItem('usuario');
     }
+
+    setCarregando(false);
   }, []);
 
-  const handleLogin = (user) => {
-    // Evita salvar "undefined" no localStorage
-    if (user) {
-      localStorage.setItem('usuario', JSON.stringify(user));
+  const handleLogin = ({ token, usuario }) => {
+    if (token) {
+      localStorage.setItem('token', token);
+      setToken(token);
     }
-    setUsuario(user || null);
+
+    if (usuario) {
+      localStorage.setItem('usuario', JSON.stringify(usuario));
+      setUsuario(usuario);
+    }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     localStorage.removeItem('usuario');
     localStorage.removeItem('financeData');
+    setToken(null);
     setUsuario(null);
   };
 
-  if (!usuario) {
+  if (carregando) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!token) {
     return <Login onLogin={handleLogin} />;
   }
 

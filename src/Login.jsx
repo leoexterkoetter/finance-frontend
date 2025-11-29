@@ -3,7 +3,6 @@ import { LogIn, UserPlus } from 'lucide-react';
 
 const API_URL = 'https://finance-backend-production-8578.up.railway.app';
 
-
 const Login = ({ onLogin }) => {
   const [modo, setModo] = useState('login');
   const [form, setForm] = useState({ email: '', senha: '', nome: '' });
@@ -16,34 +15,54 @@ const Login = ({ onLogin }) => {
     setCarregando(true);
 
     try {
-  const endpoint = modo === 'login' ? '/api/login' : '/api/cadastro';
+      const endpoint = modo === 'login' ? '/api/login' : '/api/cadastro';
 
-  const response = await fetch(`https://finance-backend-production-8578.up.railway.app${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(form)
-  });
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
 
-  const data = await response.json();
+      const data = await response.json();
 
-  if (response.ok) {
-    if (modo === 'cadastro') {
-      setModo('login');
-      setForm({ email: form.email, senha: '', nome: '' });
-      alert('Cadastro realizado! Faça login.');
-    } else {
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      onLogin(data.usuario);
-    }
-  } else {
-    setErro(data.erro || 'Erro ao processar requisição');
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao processar requisição');
+      }
+
+      // ✅ CADASTRO
+      if (modo === 'cadastro') {
+        alert('Cadastro realizado com sucesso! Faça login.');
+        setModo('login');
+        setForm({ email: form.email, senha: '', nome: '' });
+        return;
+      }
+
+      // ✅ LOGIN (JWT)
+      localStorage.setItem('token', data.token);
+      localStorage.setItem(
+        'usuario',
+        JSON.stringify({
+          id: data.id,
+          nome: data.nome,
+          email: data.email
+        })
+      );
+
+     onLogin({
+  token: data.token,
+  usuario: {
+    id: data.id,
+    nome: data.nome,
+    email: data.email
   }
-} catch (error) {
-  setErro('Erro ao conectar com servidor');
-} finally {
-  setCarregando(false);
-}
+});
 
+
+    } catch (error) {
+      setErro(error.message || 'Erro ao conectar com servidor');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
@@ -67,6 +86,7 @@ const Login = ({ onLogin }) => {
             <LogIn className="inline mr-2" size={18} />
             Login
           </button>
+
           <button
             onClick={() => {
               setModo('cadastro');
@@ -91,7 +111,7 @@ const Login = ({ onLogin }) => {
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
                 placeholder="Seu nome"
-                required={modo === 'cadastro'}
+                required
               />
             </div>
           )}
@@ -135,7 +155,11 @@ const Login = ({ onLogin }) => {
                 : 'bg-green-600 hover:bg-green-700'
             } ${carregando ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {carregando ? 'Processando...' : modo === 'login' ? 'Entrar' : 'Criar Conta'}
+            {carregando
+              ? 'Processando...'
+              : modo === 'login'
+              ? 'Entrar'
+              : 'Criar Conta'}
           </button>
         </form>
       </div>
