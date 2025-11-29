@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 // ✅ MELHORADO: PDF com design moderno e bonito
@@ -175,7 +175,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
   yPos += 8;
   const top5 = porCategoria.slice(0, 5);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Categoria', 'Valor', 'Porcentagem']],
     body: top5.map(item => [
@@ -232,7 +232,7 @@ export const exportarPDF = (transacoes, totais, mesAtual, usuario, porCategoria)
     doc.setTextColor(156, 163, 175);
     doc.text('Nenhuma transação encontrada neste período', margin, yPos);
   } else {
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['Data', 'Tipo', 'Categoria', 'Valor', 'Status']],
       body: transacoesMes.map(t => [
@@ -341,7 +341,7 @@ export const exportarPDFCompleto = (transacoes, caixinhas, usuario, periodo) => 
   
   const todasTransacoes = transacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor']],
     body: todasTransacoes.map(t => [
@@ -368,7 +368,7 @@ export const exportarPDFCompleto = (transacoes, caixinhas, usuario, periodo) => 
     
     yPos += 8;
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['Nome', 'Valor Total', 'Valor Pago', 'Parcelas', 'Progresso']],
       body: caixinhas.map(c => [
